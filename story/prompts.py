@@ -77,10 +77,56 @@ FRAME_RULES = (
     "Never render any letters, words, subtitles or watermarks in the image."
 )
 
+# Когда бренд в кадре, запрет «никаких букв» снимается — но ТОЛЬКО для одного
+# слова. Иначе модель дорисовывает случайный текст на всех поверхностях, и кадр
+# превращается в кашу из нечитаемых надписей.
+def frame_rules_with_brand(brand: str) -> str:
+    return (
+        "Vertical 9:16 frame. Keep the bottom 25% of the frame visually calm "
+        "(no faces, no text, no busy signage) — captions are burned there. "
+        f"The ONLY text anywhere in the image is the single word '{brand}'. "
+        "No other letters, words, slogans, captions or watermarks — leave every "
+        "other sign, poster and label completely blank."
+    )
+
+
 SAFETY_CLAUSE = (
     " All characters are adults, fully clothed, non-sexual, non-violent. "
-    "No gore, no weapons pointed at anyone, no real-world logos or brand marks."
+    "No gore, no weapons pointed at anyone, no third-party logos or brand marks."
 )
+
+
+# ── НАТИВНЫЙ ПЛЕЙСМЕНТ ─────────────────────────────────────────────────────────
+
+def build_brand_clause(brand: str, surface: str, mode: str = "native") -> str:
+    """
+    Инструкция по размещению имени бренда на предмете внутри сцены.
+
+    `surface` — конкретный предмет из сценария («a rusty barrel», «a neon sign
+    above the bar»). Без него модель лепит название в воздух или на всю стену.
+
+    Режимы:
+      native — предмет живёт в кадре как часть мира, читается, но не доминирует
+      hero   — предмет в фокусе, крупно, это главный объект кадра
+    """
+    if not brand:
+        return ""
+    surface = (surface or "a sign in the background").strip()
+    if mode == "hero":
+        return (
+            f" Brand placement: {surface} is the visual centre of the frame, "
+            f"large and in sharp focus, with the word '{brand}' printed on it in "
+            f"clean bold letters, perfectly spelled, fully legible, unobstructed. "
+            f"The lettering follows the surface (curved on curved objects, "
+            f"weathered on old ones) so it reads as part of the object, not a sticker."
+        )
+    return (
+        f" Brand placement: {surface} carries the word '{brand}' in clean bold "
+        f"letters, perfectly spelled and legible, integrated into the scene's "
+        f"lighting and materials as if it has always been there. It sits in the "
+        f"middle or upper part of the frame, noticeable but not blocking the "
+        f"character or the action."
+    )
 
 
 # ── СЦЕНАРИСТ ──────────────────────────────────────────────────────────────────
@@ -113,7 +159,11 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
                 "what the character is doing, what fills the background. "
                 "Do NOT re-describe the character's face/clothes — that comes from the bible.",
       "motion": "ENGLISH one short line: what subtly moves and how the camera drifts",
-      "beat": "setup | build | turn | payoff"
+      "beat": "setup | build | turn | payoff",
+      "brand_surface": "ENGLISH: one concrete object already present in THIS scene "
+                       "that could plausibly carry a brand name — a barrel, a neon "
+                       "sign, a jersey, a poster, a crate, a monitor, a banner. "
+                       "Just the object, no brand name. Empty string if nothing fits."
     }
   ],
   "cta": "optional final line in the target language, or empty string"
@@ -129,7 +179,10 @@ HARD RULES:
    the video. Same character, new world each shot.
 5. Shot 1 must be the strongest image and open a curiosity loop.
    The final shot resolves it.
-6. No real living people by name, no real brand logos, nothing sexual or violent.
+6. No real living people by name, no third-party brand logos, nothing sexual or violent.
+7. brand_surface must be an object that BELONGS in that scene and era — a 90s
+   market stall gets a cardboard box, a night club gets a neon sign. Never invent
+   an out-of-place billboard just to fit a brand.
 """
 
 
@@ -178,18 +231,28 @@ def build_character_ref_prompt(character: dict, world: str = "", preset: str = "
 
 
 def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
-                          preset: str = "") -> str:
+                          preset: str = "", brand: str = "",
+                          brand_mode: str = "native") -> str:
     """Кейфрейм шота. Персонаж приходит референс-картинкой, здесь — только сцена."""
     st = style(preset)
     name = str(character.get("name", "the character")).strip()
     visual = str(shot.get("visual", "")).strip()
+
+    # Бренд ставим только в те шоты, которые помечены на этапе нормализации
+    # сценария, и только если у сцены есть подходящая поверхность.
+    use_brand = bool(brand) and bool(shot.get("brand"))
+    rules = frame_rules_with_brand(brand) if use_brand else FRAME_RULES
+    brand_clause = (build_brand_clause(brand, shot.get("brand_surface", ""), brand_mode)
+                    if use_brand else "")
+
     return (
         f"Single cinematic vertical frame. The SAME character as in the reference "
         f"image ('{name}') — keep the face, hair and body type exactly on-model. "
         f"Scene: {visual}. "
         f"{('World: ' + world + '. ') if world else ''}"
         f"Art style: {st['image']}. "
-        f"{FRAME_RULES}"
+        f"{rules}"
+        f"{brand_clause}"
         f"{SAFETY_CLAUSE}"
     )
 
@@ -210,5 +273,12 @@ def build_motion_prompt(shot: dict, preset: str = "") -> str:
         f"{st['motion']}. "
         f"The scene is a real place, not an illustration or a screen: "
         f"animate the world itself. Hold the composition — the subject stays "
-        f"in frame the whole time. No text, no subtitles, no watermark, no cuts."
+        f"in frame the whole time. No cuts, no new text appearing."
+        + (
+            " Any lettering already visible in the frame must stay perfectly "
+            "still, sharp and unchanged — do not warp, redraw, animate or "
+            "re-letter it as the shot moves."
+            if shot.get("brand") else
+            " No text, no subtitles, no watermark."
+        )
     )

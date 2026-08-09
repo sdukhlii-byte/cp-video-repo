@@ -1,0 +1,70 @@
+{
+  "title": "night_server",
+  "language": "ru",
+  "style_preset": "pixel_story",
+  "hook": "его считали читером",
+  "character": {
+    "name": "Тимур",
+    "design": "young man about twenty two, wiry build, pale face with sharp cheekbones, messy black hair falling over the eyes, thin silver hoop in the left ear, wears an oversized black hoodie with a faded print, grey cargo pants, worn black sneakers, a thin chain around the neck"
+  },
+  "world": "from a dim regional internet cafe in the late 2000s to a modern esports arena",
+  "shots": [
+    {
+      "narration": "в две тысячи девятом он играл в подвальном компьютерном клубе",
+      "visual": "dim basement internet cafe at night, rows of bulky CRT monitors, the character in the back row hunched over a scratched keyboard, cigarette smoke in the cold blue light, other players silhouetted around him",
+      "motion": "slow push-in from behind the row of monitors, screen glow flickering, smoke drifting",
+      "beat": "setup",
+      "brand_surface": "a paper poster taped to the wall above the monitors"
+    },
+    {
+      "narration": "администратор выгонял его в шесть утра каждый день",
+      "visual": "the character stepping out of a basement door into grey early morning, empty courtyard of soviet apartment blocks, breath visible in cold air, backpack over one shoulder",
+      "motion": "static wide shot with a slight drift upward, breath and dust moving in the cold light",
+      "beat": "setup",
+      "brand_surface": ""
+    },
+    {
+      "narration": "он выигрывал так часто, что его считали читером",
+      "visual": "close angle on the character at a tournament table in a small local hall, a crowd of teenagers leaning in behind him, hostile faces, cheap fluorescent lighting, a plastic trophy on the table",
+      "motion": "slow lateral drift past the crowd, faces turning, fluorescent light buzzing",
+      "beat": "build",
+      "brand_surface": "a printed banner stretched across the wall behind the table"
+    },
+    {
+      "narration": "его отстранили на два года и он почти ушёл",
+      "visual": "the character alone on a night bus, forehead against the dark window, empty seats, streetlights sliding past outside, reflection of his face in the glass",
+      "motion": "gentle handheld sway of the bus, streetlights sliding across the glass",
+      "beat": "build",
+      "brand_surface": "a small advertising sticker on the bus window frame"
+    },
+    {
+      "narration": "но он вернулся и переписал свою игру с нуля",
+      "visual": "cramped bedroom converted into a training setup, three monitors full of replays and notes, the character mid-session with headphones on, dawn light through the blinds, walls covered in handwritten diagrams",
+      "motion": "slow push-in toward the monitors, replay footage moving on screen, dust in the dawn light",
+      "beat": "turn",
+      "brand_surface": "a mousepad on the desk"
+    },
+    {
+      "narration": "через год он вышел на главную сцену континента",
+      "visual": "huge modern esports arena from the stage, the character small against a wall of light, thousands of phone flashes in the dark crowd, giant screens glowing above",
+      "motion": "slow rise revealing the crowd, phone lights twinkling, stage lights sweeping",
+      "beat": "turn",
+      "brand_surface": "the giant LED banner above the stage"
+    },
+    {
+      "narration": "он не стал звездой, он стал системой",
+      "visual": "modern analyst room, the character standing calmly at a whiteboard covered in diagrams, a young team of players sitting and listening, warm evening light through floor to ceiling windows",
+      "motion": "slow lateral track past the seated players toward the character, evening light shifting",
+      "beat": "payoff",
+      "brand_surface": "team jerseys on the backs of the seated players"
+    },
+    {
+      "narration": "и теперь по его схемам играет весь регион",
+      "visual": "night city rooftop, the character standing at the railing with his back to camera, glowing skyline below, a wide dark sky above",
+      "motion": "slow push-in from behind, city lights flickering, clouds drifting",
+      "beat": "payoff",
+      "brand_surface": "an illuminated rooftop sign on a neighbouring building"
+    }
+  ],
+  "cta": ""
+}

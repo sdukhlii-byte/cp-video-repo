@@ -70,7 +70,8 @@ def character_ref(workdir: str, character: dict, world: str = "",
 
 def keyframe(workdir: str, idx: int, shot: dict, character: dict,
              ref_url: str, world: str = "", preset: str = "") -> tuple[str, str]:
-    base = build_keyframe_prompt(shot, character, world, preset)
+    base = build_keyframe_prompt(shot, character, world, preset,
+                                 brand=C.BRAND_NAME, brand_mode=C.BRAND_PLACEMENT)
     path = os.path.join(workdir, f"keyframe_{idx:02d}.png")
 
     attempts = [

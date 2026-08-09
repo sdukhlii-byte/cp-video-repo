@@ -87,8 +87,16 @@ def group_words(words: list[dict], min_sec: float = 0.0,
     return groups
 
 
+def _promo_color() -> str:
+    try:
+        r, g, b = (int(x) for x in C.PROMO_COLOR.split(",")[:3])
+    except Exception:  # noqa: BLE001
+        r, g, b = 255, 255, 255
+    return _ass(r, g, b)
+
+
 def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int = 0,
-              hook: str = "", hook_until: float = 2.0) -> str:
+              hook: str = "", hook_until: float = 2.0, promo: str = "") -> str:
     """
     words: [{word, start, end, shot?}] в глобальных секундах ролика.
     Возвращает путь к .ass.
@@ -102,6 +110,8 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
     # Обводку держим пропорционально кеглю: иначе при смене размера шрифта
     # текст либо тонет в чёрном, либо теряет читаемость на пёстром кадре.
     outline  = round(fs * C.CAPTION_OUTLINE_RATIO, 1)
+    promo_fs = int(video_h * C.PROMO_SIZE_RATIO)
+    promo_outline = round(promo_fs * C.CAPTION_OUTLINE_RATIO, 1)
     shadow   = C.CAPTION_SHADOW
     font     = C.CAPTION_FONT
 
@@ -116,13 +126,27 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,60,60,{margin_v},1
 Style: Hook,{font},{hook_fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},8,60,60,{int(video_h*0.17)},1
+Style: Promo,{font},{promo_fs},{_promo_color()},{_promo_color()},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{promo_outline},{shadow},8,50,50,{int(video_h*C.PROMO_MARGIN_V)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
     lines: list[str] = []
-    if hook:
+
+    # Промо-плашка. Рисуется наложением, а не генерацией, поэтому промокод и
+    # домен всегда написаны верно — в отличие от текста, который рисует модель.
+    promo = promo or C.PROMO_TEXT
+    if promo:
+        total = max((float(w["end"]) for w in words), default=5.0) + 0.6
+        until = total if C.PROMO_FULL_VIDEO else min(C.PROMO_UNTIL_SEC, total)
+        text = _esc(promo.upper()).replace("|", "\\N")   # «|» = перенос строки
+        lines.append(f"Dialogue: 0,{_ts(0.0)},{_ts(until)},Promo,,0,0,0,,"
+                     f"{{\\fad(200,200)}}{text}")
+
+    if hook and not promo:
+        # Хук и промо оба живут сверху — вместе они наложились бы друг на друга.
+        # Промо приоритетнее: оно несёт оффер и висит весь ролик.
         lines.append(
             f"Dialogue: 0,{_ts(0.05)},{_ts(hook_until)},Hook,,0,0,0,,"
             f"{{\\fad(120,120)}}{_esc(_case(hook))}"

@@ -109,6 +109,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
             "visual": visual,
             "motion": str(s.get("motion") or "").strip(),
             "beat": str(s.get("beat") or "").strip(),
+            "brand_surface": str(s.get("brand_surface") or "").strip(),
         })
 
     if len(out_shots) > shots:
@@ -116,6 +117,8 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
         out_shots = out_shots[:shots]
     if len(out_shots) < 3:
         raise ValueError(f"Слишком мало валидных шотов: {len(out_shots)}")
+
+    _assign_brand(out_shots)
 
     return {
         "title": str(data.get("title") or "story").strip(),
@@ -127,6 +130,41 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
         "cta": clean_narration(data.get("cta") or ""),
         "style_preset": str(data.get("style_preset") or C.STYLE_PRESET),
     }
+
+
+def _assign_brand(shots: list[dict]) -> None:
+    """
+    Помечает часть шотов флагом brand=True — в них картиночная модель нарисует
+    название бренда на предмете из brand_surface.
+
+    Почему не во всех: сплошной плейсмент читается как реклама и убивает эффект
+    «истории», ради которого формат и работает. Поэтому берём долю шотов и
+    распределяем их РАВНОМЕРНО по таймлайну, а не подряд — бренд должен
+    периодически напоминать о себе, а не мелькнуть один раз в начале.
+    Первый шот пропускаем: он ловит внимание, ему нельзя выглядеть рекламой.
+    """
+    if C.BRAND_PLACEMENT == "off" or not C.BRAND_NAME:
+        for sh in shots:
+            sh["brand"] = False
+        return
+
+    eligible = [i for i, sh in enumerate(shots) if sh.get("brand_surface")]
+    if not eligible:
+        log.warning("Сценарий не дал ни одной поверхности под бренд — плейсмента не будет")
+        for sh in shots:
+            sh["brand"] = False
+        return
+
+    # первый шот — только если больше вариантов нет
+    pool = [i for i in eligible if i != 0] or eligible
+    want = max(1, round(len(shots) * C.BRAND_SHOT_RATIO))
+    want = min(want, len(pool))
+    step = len(pool) / want
+    chosen = {pool[min(int(k * step), len(pool) - 1)] for k in range(want)}
+
+    for i, sh in enumerate(shots):
+        sh["brand"] = i in chosen
+    log.info("Плейсмент %r в шотах: %s", C.BRAND_NAME, sorted(chosen))
 
 
 def estimate_duration(script: dict) -> float:

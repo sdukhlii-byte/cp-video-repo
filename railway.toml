@@ -1,0 +1,10 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+# Это НЕ веб-сервис: контейнер запускает одну задачу и завершается.
+# Домен генерировать не нужно, порт никто не слушает.
+# Запуск — вручную (Redeploy) или по расписанию (Settings → Cron Schedule).
+[deploy]
+startCommand = "python3 run_job.py"
+restartPolicyType = "NEVER"

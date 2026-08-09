@@ -10,4 +10,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-CMD ["python3", "cli.py", "doctor"]
+# Одноразовая задача: сделать ролик и выйти. Не сервер — порт не слушается.
+CMD ["python3", "run_job.py"]

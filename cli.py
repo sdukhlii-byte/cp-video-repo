@@ -90,6 +90,20 @@ def cmd_doctor(args) -> None:
     for k in ("OPENROUTER_API_KEY", "ELEVENLABS_API_KEY", "ELEVEN_VOICE_ID"):
         v = os.environ.get(k) or (C.ELEVEN_VOICE_ID if k == "ELEVEN_VOICE_ID" else "")
         print(f"  {k:20} {'задан' if v else 'НЕ ЗАДАН'}")
+    tg = bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"))
+    print(f"  TELEGRAM (доставка)  {'задан' if tg else 'НЕ ЗАДАН — на Railway ролик будет некуда деть'}")
+
+    # Частая ошибка: в переменную кладут слаг fal (fal-ai/...), а весь клиент
+    # ходит в OpenRouter. Запрос вернёт 404, и фолбэк тихо не сработает.
+    print("\n── Слаги моделей ──")
+    for name, val in (("VIDEO_MODEL", C.VIDEO_MODEL),
+                      ("SECONDARY_VIDEO_MODEL", C.SECONDARY_VIDEO_MODEL),
+                      ("IMAGE_MODEL", C.IMAGE_MODEL)):
+        bad = val.startswith("fal-ai/") or val.count("/") > 1
+        flag = "  ← похоже на слаг fal, а нужен OpenRouter (vendor/model)" if bad else ""
+        print(f"  {name:22} {val}{flag}")
+        ok &= not bad
+    print("  сверить актуальные: python3 cli.py models --filter veo")
 
     print("\n── План ролика ──")
     print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "

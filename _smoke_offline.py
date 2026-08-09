@@ -74,7 +74,10 @@ def main() -> None:
 
     orclient.generate_image_bytes = _stub_image
     orclient.generate_video_bytes = _stub_video
-    voice.synthesize_line = _stub_tts
+    if os.environ.get("VOICE_ENABLED", "true").lower() not in ("0", "false", "no"):
+        # голос включён → подменяем TTS заглушкой; при VOICE_ENABLED=false
+        # работает штатный беззвучный режим, и подменять нечего
+        voice.synthesize_line = _stub_tts
     # видеомодель недоступна → пусть отработает штатная цепочка фолбэка (Ken Burns)
 
     with open(args.script, encoding="utf-8") as f:

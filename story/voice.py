@@ -24,6 +24,10 @@ from story import media
 log = logging.getLogger("voice")
 
 
+class TTSPaymentRequired(RuntimeError):
+    """Кончился баланс/ключ не оплачен. Ретраить бессмысленно."""
+
+
 def _words_from_alignment(alignment: dict) -> list[dict]:
     """Посимвольные тайминги → пословные (границы по пробелам)."""
     chars = alignment.get("characters", [])
@@ -68,6 +72,14 @@ def synthesize_line(workdir: str, idx: int, text: str,
     for attempt in range(1, retries + 1):
         try:
             r = requests.post(url, headers=headers, json=payload, timeout=90)
+            # 401/402/403 — терминальные: ключ, баланс или права. Ретрай их только
+            # растягивает падение на минуту и прячет настоящую причину.
+            if r.status_code in (401, 402, 403):
+                raise TTSPaymentRequired(
+                    f"ElevenLabs HTTP {r.status_code} — ключ/баланс/права. "
+                    f"Если баланса нет, поставь VOICE_ENABLED=false: "
+                    f"ролик соберётся с субтитрами и музыкой, без голоса."
+                )
             r.raise_for_status()
             data = r.json()
             audio_b64 = data.get("audio_base64") or data.get("audio")
@@ -91,6 +103,8 @@ def synthesize_line(workdir: str, idx: int, text: str,
                 duration = words[-1]["end"]
             log.info("Озвучка шота %d: %.2fс, %d слов", idx, duration, len(words))
             return wav, duration, words
+        except TTSPaymentRequired:
+            raise
         except Exception as e:  # noqa: BLE001
             last = e
             if attempt < retries:
@@ -99,6 +113,41 @@ def synthesize_line(workdir: str, idx: int, text: str,
                             idx, attempt, retries, str(e)[:140], wait)
                 time.sleep(wait)
     raise RuntimeError(f"TTS шота {idx} не удался: {last}")
+
+
+# ── РЕЖИМ БЕЗ ГОЛОСА ───────────────────────────────────────────────────────────
+
+def mock_line(workdir: str, idx: int, text: str) -> tuple[str, float, list[dict]]:
+    """
+    Дорожка шота без TTS: тишина нужной длины + расчётные пословные тайминги.
+
+    Длительность слова пропорциональна его длине (длинное слово читается дольше),
+    после запятой добавляется микропауза. Это не имитация живой речи — это ровный
+    читаемый ритм, которого достаточно, чтобы оценить монтаж, кадры и субтитры
+    до того, как платить за озвучку.
+    """
+    raw_words = text.split()
+    if not raw_words:
+        wav = media.make_silence(os.path.join(workdir, f"voice_{idx:02d}.wav"),
+                                 C.MIN_SHOT_SEC)
+        return wav, C.MIN_SHOT_SEC, []
+
+    weights = [len(w.strip(",.!?;:")) + 2 for w in raw_words]
+    pauses = [0.14 if w.endswith(",") else 0.0 for w in raw_words]
+    speech = len(raw_words) / max(C.WORDS_PER_SEC, 0.5)
+    scale = speech / sum(weights)
+
+    words, t = [], 0.10
+    for w, weight, pause in zip(raw_words, weights, pauses):
+        d = max(weight * scale, 0.20)
+        words.append({"word": w.strip(",.!?;:"), "start": t, "end": t + d * 0.94})
+        t += d + pause
+
+    duration = t + 0.10
+    wav = media.make_silence(os.path.join(workdir, f"voice_{idx:02d}.wav"), duration)
+    log.info("Шот %d без голоса: %.2fс, %d слов (расчётный ритм)",
+             idx, duration, len(words))
+    return wav, duration, words
 
 
 def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float], list[dict]]:
@@ -125,7 +174,10 @@ def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float
             cursor += C.MIN_SHOT_SEC
             continue
 
-        wav, dur, words = synthesize_line(workdir, i, text)
+        if C.VOICE_ENABLED:
+            wav, dur, words = synthesize_line(workdir, i, text)
+        else:
+            wav, dur, words = mock_line(workdir, i, text)
         d_i = max(dur + C.VOICE_TAIL_SEC, C.MIN_SHOT_SEC)
         for w in words:
             if w.get("start") is None or w.get("end") is None:
@@ -140,5 +192,7 @@ def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float
         durations.append(d_i)
         cursor += d_i
 
-    log.info("Озвучка целиком: %.2fс, %d слов", cursor, len(words_global))
+    log.info("%s целиком: %.2fс, %d слов",
+             "Озвучка" if C.VOICE_ENABLED else "Дорожка без голоса",
+             cursor, len(words_global))
     return wavs, durations, words_global

@@ -109,6 +109,7 @@ def cmd_doctor(args) -> None:
     print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "
           f"= {C.planned_shot_count()} шотов, ~{C.words_per_shot()} слов на шот")
     print(f"  кадр {C.VIDEO_W}x{C.VIDEO_H} @{C.FPS}fps, стиль {C.STYLE_PRESET}")
+    print(f"  озвучка: {'ElevenLabs' if C.VOICE_ENABLED else 'ВЫКЛЮЧЕНА (субтитры + музыка)'}")
     print(f"  видеомодель {C.VIDEO_MODEL} (фолбэк {C.SECONDARY_VIDEO_MODEL})")
 
     if args.render_test and ok:

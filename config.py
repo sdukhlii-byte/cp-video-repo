@@ -98,7 +98,12 @@ SECONDARY_VIDEO_MODEL   = _opt("SECONDARY_VIDEO_MODEL", "bytedance/seedance-2.0"
 # Последний рубеж: если видео не собралось вообще — оживляем кейфрейм зумом.
 KENBURNS_FALLBACK = _b("KENBURNS_FALLBACK", True)
 
-# ── ELEVENLABS ─────────────────────────────────────────────────────────────────
+# ── ОЗВУЧКА ────────────────────────────────────────────────────────────────────
+# VOICE_ENABLED=false → ролик собирается БЕЗ голоса: только субтитры и музыка.
+# Тайминги слов тогда считаются из длины текста (ровный ритм вместо живого),
+# всё остальное в конвейере не меняется — потом включаешь голос и пересобираешь.
+VOICE_ENABLED   = _b("VOICE_ENABLED", True)
+
 ELEVEN_BASE     = "https://api.elevenlabs.io/v1"
 ELEVEN_VOICE_ID = _opt("ELEVEN_VOICE_ID", "")        # обязателен для render
 ELEVEN_MODEL    = _opt("ELEVEN_MODEL", "eleven_multilingual_v2")

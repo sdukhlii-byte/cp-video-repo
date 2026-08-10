@@ -24,6 +24,35 @@ from story import captions, compose, export, visuals, voice
 log = logging.getLogger("render")
 
 
+def pick_animated(shots: list[dict], ratio: float) -> set[int]:
+    """
+    Какие шоты идут через видеомодель, а какие — зумом из кейфрейма.
+
+    Живое движение отдаём туда, где оно реально работает: первый шот (он решает,
+    досмотрят ли ролик), последний (концовка) и смысловые повороты. Ровные
+    «проходные» шоты держат зум — на 4 секундах с крупным словом поверх разницу
+    почти не видно, а платить за них незачем.
+    """
+    n = len(shots)
+    if ratio >= 1.0:
+        return set(range(n))
+    want = max(1, round(n * max(ratio, 0.0)))
+    if want >= n:
+        return set(range(n))
+
+    priority = [0, n - 1]                                   # хук и концовка
+    priority += [i for i, sh in enumerate(shots) if sh.get("beat") == "turn"]
+    priority += [i for i, sh in enumerate(shots) if sh.get("beat") == "payoff"]
+    priority += list(range(n))                              # добор по порядку
+
+    chosen: set[int] = set()
+    for i in priority:
+        if len(chosen) >= want:
+            break
+        chosen.add(i)
+    return chosen
+
+
 def _workdir(base: str, title: str) -> str:
     slug = "".join(ch if ch.isalnum() else "_" for ch in title.lower())[:40].strip("_") or "story"
     path = os.path.join(base, f"{slug}_{int(time.time())}")
@@ -65,13 +94,26 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
     # 3. Озвучка — ДО анимации, чтобы знать точную длину каждого шота
     voice_wavs, durations, words = voice.synthesize_script(wd, script)
 
-    # 4. Анимация (параллельно)
+    # 4. Анимация. Часть шотов может идти зумом из кейфрейма — см. ANIMATE_RATIO.
+    animated = pick_animated(shots, C.ANIMATE_RATIO)
+    if len(animated) < len(shots):
+        log.info("Гибрид: через видеомодель %d из %d шотов (%s), остальные — зум",
+                 len(animated), len(shots), sorted(animated))
+
     clips: dict[int, str] = {}
+    from story import media
+    for i in range(len(shots)):
+        if i not in animated:
+            path = os.path.join(wd, f"shot_{i:02d}_raw.mp4")
+            media.ken_burns_clip(keyframes[i][1], path, durations[i],
+                                 C.VIDEO_W, C.VIDEO_H, C.FPS)
+            clips[i] = path
+
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {
             ex.submit(visuals.animate, wd, i, keyframes[i][1], shots[i],
                       durations[i], preset): i
-            for i in range(len(shots))
+            for i in sorted(animated)
         }
         for fut in as_completed(futs):
             i = futs[fut]
@@ -107,6 +149,7 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         "duration": probe_duration(final),
         "shots": len(shots),
         "video_cost": round(cost, 3),
+        "animated_shots": len(animated),
         "workdir": wd,
         "character_ref": ref_path,
         "texts": texts,

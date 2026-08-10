@@ -14,56 +14,64 @@
       "visual": "cramped grey apartment room at dusk, the character kneeling over a half-assembled beige PC surrounded by cables, dust in the lamp light, faded wallpaper, a cracked window showing panel houses",
       "motion": "slow push-in toward the character, dust drifting in the lamp beam, monitor flicker",
       "beat": "setup",
-      "action": "kneeling over an open PC case, forcing a cable into a slot"
+      "action": "kneeling over an open PC case, forcing a cable into a slot",
+      "brand_surface_upper": "a hand-painted sign board above the doorway"
     },
     {
       "narration": "первый модем стоил дороже, чем месяц его работы",
       "visual": "narrow electronics market stall at night, the character holding a boxed modem, harsh fluorescent tubes overhead, shelves crammed with beige hardware, breath visible in cold air",
       "motion": "gentle handheld drift, flickering fluorescent light, background shoppers moving slowly",
       "beat": "setup",
-      "action": "turning a boxed modem over in his hands, checking the price sticker"
+      "action": "turning a boxed modem over in his hands, checking the price sticker",
+      "brand_surface_upper": "a light box hanging over the market stall"
     },
     {
       "narration": "он играл ночами, пока весь подъезд спал",
       "visual": "dark room lit only by a CRT monitor, the character hunched in the chair seen from a low angle, the glow painting his face, a mug and scattered notes on the desk",
       "motion": "very slow dolly-in, monitor light pulsing, steam rising from the mug",
       "beat": "build",
-      "action": "leaning into the monitor, one hand dragging across the mouse"
+      "action": "leaning into the monitor, one hand dragging across the mouse",
+      "brand_surface_upper": "a paper banner pinned high on the wall"
     },
     {
       "narration": "восемь лет подряд он проигрывал почти всё",
       "visual": "the same room years later, colder palette, the character sitting back from the desk with empty hands, walls covered in pinned printouts and crossed-out numbers",
       "motion": "static frame with a barely perceptible push-in, papers trembling in a draft",
       "beat": "build",
-      "action": "shoving a stack of printouts off the desk"
+      "action": "shoving a stack of printouts off the desk",
+      "brand_surface_upper": "a sign board above the window"
     },
     {
       "narration": "а потом он перестал угадывать и начал считать",
       "visual": "the character at a wide desk with three monitors full of green charts, an open notebook of handwritten formulas, early morning blue light through the blinds",
       "motion": "slow lateral drift across the monitors, chart lines animating, blinds light shifting",
       "beat": "turn",
-      "action": "flipping through a notebook and jabbing at a formula with a pen"
+      "action": "flipping through a notebook and jabbing at a formula with a pen",
+      "brand_surface_upper": "a printed banner above the blinds"
     },
     {
       "narration": "в две тысячи семнадцатом его модель наконец сработала",
       "visual": "neon-lit night city rooftop, the character standing at the railing looking at his phone, skyline of glowing towers behind him, rain-wet concrete reflecting the signs",
       "motion": "slow rise and push-in, neon signs flickering, light rain drifting past",
       "beat": "turn",
-      "action": "gripping the wet railing, phone raised, reading the screen"
+      "action": "gripping the wet railing, phone raised, reading the screen",
+      "brand_surface_upper": "a glowing sign on the neighbouring tower"
     },
     {
       "narration": "он не сорвал куш, он просто перестал терять",
       "visual": "quiet modern apartment at dawn, the character calmly closing a laptop at a clean table, warm sunrise light across the floor, city visible through a large window",
       "motion": "gentle push-in, sunlight slowly moving across the table, dust motes floating",
       "beat": "payoff",
-      "action": "closing the laptop lid slowly and pushing back from the table"
+      "action": "closing the laptop lid slowly and pushing back from the table",
+      "brand_surface_upper": "a panel above the large window"
     },
     {
       "narration": "и в этом вся разница между удачей и системой",
       "visual": "the character walking away down a bright empty street, seen from behind, tall glass buildings on both sides, long morning shadows",
       "motion": "slow tracking shot following him from behind, shadows shifting, distant traffic",
       "beat": "payoff",
-      "action": "walking away from camera down the empty street, hands in pockets"
+      "action": "walking away from camera down the empty street, hands in pockets",
+      "brand_surface_upper": "a street banner strung between the buildings"
     }
   ],
   "cta": ""

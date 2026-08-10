@@ -87,6 +87,51 @@ def group_words(words: list[dict], min_sec: float = 0.0,
     return groups
 
 
+# Доля кегля на один символ у Montserrat ExtraBold. Замерено рендером:
+# заглавные шире строчных, поэтому коэффициенты разные. Нужно, чтобы прикинуть
+# ширину строки ДО рендера и решить, переносить её или уменьшать кегль.
+_CHAR_W_UPPER = 0.60
+_CHAR_W_LOWER = 0.50
+
+
+def _wrap(text: str, max_chars: int) -> list[str]:
+    """Разбивает по словам на строки не длиннее max_chars."""
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        cand = f"{cur} {w}".strip()
+        if cur and len(cand) > max_chars:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = cand
+    if cur:
+        lines.append(cur)
+    return lines or [text]
+
+
+def _fit_text(text: str, video_w: int, margin: int, fs: int,
+              max_lines: int = 2, min_fs: int = 0) -> tuple[str, int]:
+    """
+    Вписывает текст в ширину кадра: сначала переносами, потом уменьшением кегля.
+
+    Без этого длинный хук просто уезжал за границы кадра и обрезался с обеих
+    сторон — libass не переносит строки сам, если в заголовке WrapStyle=2,
+    а даже с переносом слишком крупный кегль не влезает.
+    """
+    min_fs = min_fs or int(fs * 0.55)
+    usable = max(video_w - 2 * margin, 100)
+    explicit = [p.strip() for p in text.split("|")] if "|" in text else None
+
+    while True:
+        char_w = _CHAR_W_UPPER if text == text.upper() else _CHAR_W_LOWER
+        max_chars = max(int(usable / (fs * char_w)), 4)
+        lines = explicit if explicit else _wrap(text, max_chars)
+        too_wide = any(len(l) > max_chars for l in lines)
+        if (len(lines) <= max_lines and not too_wide) or fs <= min_fs:
+            return "\\N".join(lines), fs
+        fs = int(fs * 0.92)
+
+
 def _promo_color() -> str:
     try:
         r, g, b = (int(x) for x in C.PROMO_COLOR.split(",")[:3])
@@ -105,7 +150,7 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
     video_h = video_h or C.VIDEO_H
 
     fs       = int(video_h * C.CAPTION_SIZE_RATIO)
-    hook_fs  = int(fs * 0.72)
+    hook_fs  = int(video_h * C.HOOK_SIZE_RATIO)
     margin_v = int(video_h * C.CAPTION_MARGIN_V)
     # Обводку держим пропорционально кеглю: иначе при смене размера шрифта
     # текст либо тонет в чёрном, либо теряет читаемость на пёстром кадре.
@@ -119,7 +164,7 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
 ScriptType: v4.00+
 PlayResX: {video_w}
 PlayResY: {video_h}
-WrapStyle: 2
+WrapStyle: 0
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
@@ -143,16 +188,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         total = (max((float(w["end"]) for w in words), default=5.0)
                  + C.OUTRO_HOLD_SEC + 0.6)
         until = total if C.PROMO_FULL_VIDEO else min(C.PROMO_UNTIL_SEC, total)
-        text = _esc(promo.upper()).replace("|", "\\N")   # «|» = перенос строки
+        text, pfs = _fit_text(_esc(promo.upper()), video_w, 50, promo_fs, max_lines=3)
+        size = f"\\fs{pfs}" if pfs != promo_fs else ""
         lines.append(f"Dialogue: 0,{_ts(0.0)},{_ts(until)},Promo,,0,0,0,,"
-                     f"{{\\fad(200,200)}}{text}")
+                     f"{{\\fad(200,200){size}}}{text}")
 
     if hook and not promo:
         # Хук и промо оба живут сверху — вместе они наложились бы друг на друга.
         # Промо приоритетнее: оно несёт оффер и висит весь ролик.
+        htext, hfs = _fit_text(_esc(_case(hook)), video_w, 60, hook_fs, max_lines=2)
+        hsize = f"\\fs{hfs}" if hfs != hook_fs else ""
         lines.append(
             f"Dialogue: 0,{_ts(0.05)},{_ts(hook_until)},Hook,,0,0,0,,"
-            f"{{\\fad(120,120)}}{_esc(_case(hook))}"
+            f"{{\\fad(120,120){hsize}}}{htext}"
         )
 
     groups = group_words(words)
@@ -173,8 +221,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         pop = ("{\\fad(30,30)\\t(0,80,\\fscx100\\fscy100)\\fscx86\\fscy86}"
                if C.CAPTION_POP else "{\\fad(30,30)}")
+        wtext, wfs = _fit_text(_esc(_case(g["text"])), video_w, 60, fs, max_lines=1)
+        wsize = f"{{\\fs{wfs}}}" if wfs != fs else ""
         lines.append(
-            f"Dialogue: 1,{_ts(start)},{_ts(end)},Word,,0,0,0,,{pop}{_esc(_case(g['text']))}"
+            f"Dialogue: 1,{_ts(start)},{_ts(end)},Word,,0,0,0,,{pop}{wsize}{wtext}"
         )
 
     with open(out_path, "w", encoding="utf-8") as f:

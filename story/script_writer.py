@@ -120,6 +120,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
             "action": str(s.get("action") or "").strip(),
             "framing": str(s.get("framing") or "").strip(),
             "brand_surface": str(s.get("brand_surface") or "").strip(),
+            "brand_surface_upper": str(s.get("brand_surface_upper") or "").strip(),
         })
 
     if len(out_shots) > shots:
@@ -130,6 +131,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
 
     _ensure_framing(out_shots)
     _assign_brand(out_shots)
+    _assign_tagline(out_shots)
 
     return {
         "title": str(data.get("title") or "story").strip(),
@@ -203,6 +205,46 @@ def _assign_brand(shots: list[dict]) -> None:
     for i, sh in enumerate(shots):
         sh["brand"] = i in chosen
     log.info("Плейсмент %r в шотах: %s", C.BRAND_NAME, sorted(chosen))
+
+
+def _assign_tagline(shots: list[dict]) -> None:
+    """
+    Помечает шоты, где на верхней вывеске будет слоган бренда.
+
+    Слоган ставим РЕЖЕ, чем само имя: вывеска с сообщением — это уже почти
+    реклама, и в каждом втором кадре она сжигает доверие к истории. Плюс
+    длинная строка чаще выходит с опечаткой, поэтому меньше попыток — меньше
+    брака на отбраковку. Первый шот не трогаем: он ловит внимание.
+    """
+    if not C.BRAND_TAGLINE or C.BRAND_PLACEMENT == "off":
+        for sh in shots:
+            sh["tagline"] = False
+        return
+
+    # Считаем символы, а не слова: «MIN DEP 1 USDT» — четыре «слова», но всего
+    # 14 знаков, и рисуется нормально. Ошибки растут именно с длиной строки.
+    n_chars = len(C.BRAND_TAGLINE)
+    if n_chars > 18:
+        log.warning("Слоган %d знаков (%r) — чем длиннее строка, тем выше шанс "
+                    "опечатки. До 18 знаков рисуется заметно надёжнее, "
+                    "остальное лучше в PROMO_TEXT.", n_chars, C.BRAND_TAGLINE)
+    if any("\u0400" <= ch <= "\u04FF" for ch in C.BRAND_TAGLINE):
+        log.warning("Слоган кириллицей — рисуется заметно хуже латиницы. "
+                    "Латинский вариант даст меньше брака.")
+
+    eligible = [i for i, sh in enumerate(shots)
+                if sh.get("brand_surface_upper") and i != 0]
+    if not eligible:
+        eligible = [i for i in range(1, len(shots))] or [0]
+
+    want = max(1, round(len(shots) * C.BRAND_TAGLINE_RATIO))
+    want = min(want, len(eligible))
+    step = len(eligible) / want
+    chosen = {eligible[min(int(k * step), len(eligible) - 1)] for k in range(want)}
+
+    for i, sh in enumerate(shots):
+        sh["tagline"] = i in chosen
+    log.info("Слоган %r на вывеске в шотах: %s", C.BRAND_TAGLINE, sorted(chosen))
 
 
 def estimate_duration(script: dict) -> float:

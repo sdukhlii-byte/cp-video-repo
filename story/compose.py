@@ -17,7 +17,7 @@ import logging
 import os
 
 import config as C
-from story.media import concat_demux, probe_duration, run_ff, xfade_concat
+from story.media import concat_demux, detect_crop, probe_duration, run_ff, xfade_concat
 
 log = logging.getLogger("compose")
 
@@ -26,7 +26,14 @@ log = logging.getLogger("compose")
 
 def normalize_shot(src: str, dst: str, duration: float) -> None:
     """Клип → ровно `duration` сек, целевой кадр (cover-crop), FPS, без аудио."""
+    # Сначала срезаем поля провайдера, иначе они растянутся вместе с кадром.
+    pre = ""
+    if C.AUTOCROP_BARS:
+        found = detect_crop(src)
+        if found:
+            pre = found + ","
     vf = (
+        f"{pre}"
         f"scale={C.VIDEO_W}:{C.VIDEO_H}:force_original_aspect_ratio=increase,"
         f"crop={C.VIDEO_W}:{C.VIDEO_H},fps={C.FPS},setsar=1,"
         f"tpad=stop_mode=clone:stop_duration=5"   # если клип короче d_i — дотянем

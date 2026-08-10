@@ -7,6 +7,8 @@ run_job.py — одноразовый прогон для Railway: тема из
 расписанию (Settings → Cron Schedule).
 
 Переменные окружения:
+  NARRATION_FILE  путь к txt с готовым текстом озвучки. Текст не переписывается,
+               LLM придумывает только картинку к каждой реплике.
   SCRIPT_FILE  путь к утверждённому сценарию (JSON) — тогда TOPIC игнорируется
                и LLM не вызывается вообще. Это способ получить ПРЕДСКАЗУЕМЫЙ
                ролик: правишь JSON руками, коммитишь, рендеришь сколько нужно.
@@ -51,8 +53,23 @@ def pick_topic() -> str:
 def main() -> None:
     from story.script_writer import coerce, estimate_duration, write_script
 
+    narration_file = os.environ.get("NARRATION_FILE", "").strip()
     script_file = os.environ.get("SCRIPT_FILE", "").strip()
-    if script_file:
+
+    if narration_file:
+        # Свой текст: авторская интонация и порядок фактов сохраняются дословно.
+        if not os.path.exists(narration_file):
+            raise SystemExit(f"NARRATION_FILE={narration_file} не найден")
+        from story import from_text
+        with open(narration_file, encoding="utf-8") as f:
+            raw = "\n".join(l for l in f.read().splitlines()
+                             if not l.strip().startswith("#"))
+        script = from_text.script_from_text(
+            raw, language=C.LANG, hook=os.environ.get("HOOK", ""),
+            extra=os.environ.get("EXTRA_DIRECTION", ""))
+        topic = f"текст {os.path.basename(narration_file)}"
+        log.info("Сценарий из текста: %s", narration_file)
+    elif script_file:
         # Готовый сценарий: ни одного вызова LLM, результат воспроизводим.
         # Нужен, когда текст уже проверен глазами и его нельзя переписывать.
         if not os.path.exists(script_file):

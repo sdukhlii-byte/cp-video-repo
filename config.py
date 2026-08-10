@@ -61,8 +61,8 @@ ASPECT  = _opt("ASPECT", "9:16")
 # Целевая длина ролика и длина шота. Шотов = round(TARGET/SHOT).
 # 30с / 4с = ~8 шотов. Длину шота диктует озвучка, но сценарист пишет реплики
 # под SHOT_TARGET_SEC, чтобы клипы Veo не приходилось резать вхолостую.
-TARGET_DURATION_SEC = _f("TARGET_DURATION_SEC", 30.0)
-SHOT_TARGET_SEC     = _f("SHOT_TARGET_SEC", 3.0)
+TARGET_DURATION_SEC = _f("TARGET_DURATION_SEC", 36.0)
+SHOT_TARGET_SEC     = _f("SHOT_TARGET_SEC", 2.5)
 MIN_SHOT_SEC        = _f("MIN_SHOT_SEC", 1.6)
 VOICE_TAIL_SEC      = _f("VOICE_TAIL_SEC", 0.22)   # воздух после реплики внутри шота
 # Хвост ПОСЛЕ последней реплики: без него ролик обрывается ровно на последнем
@@ -136,6 +136,7 @@ CAPTION_FONT       = _opt("CAPTION_FONT", "Montserrat ExtraBold")
 FONTS_DIR          = _opt("FONTS_DIR", os.path.join(ROOT, "assets", "fonts"))
 CAPTION_CASE       = _opt("CAPTION_CASE", "lower")   # lower | upper | as_is
 CAPTION_SIZE_RATIO = _f("CAPTION_SIZE_RATIO", 0.088) # доля высоты кадра (снято с референса)
+HOOK_SIZE_RATIO    = _f("HOOK_SIZE_RATIO", 0.050)    # хук сверху — заметно мельче слова
 CAPTION_MARGIN_V   = _f("CAPTION_MARGIN_V", 0.225)   # подъём над низом (доля высоты)
 CAPTION_OUTLINE_RATIO = _f("CAPTION_OUTLINE_RATIO", 0.045)  # обводка = доля кегля
 CAPTION_SHADOW     = _f("CAPTION_SHADOW", 0.0)
@@ -160,6 +161,15 @@ BRAND_NAME       = _opt("BRAND_NAME", "")            # пусто = без пл�
 BRAND_PLACEMENT  = _opt("BRAND_PLACEMENT", "native") # native | hero | off
 BRAND_SHOT_RATIO = _f("BRAND_SHOT_RATIO", 0.6)       # доля шотов с брендом
 
+# Слоган на вывеске В ВЕРХНЕЙ части кадра — сообщение, а не просто имя.
+# ЖЁСТКОЕ ограничение жанра: чем длиннее строка, тем больше опечаток рисует
+# модель. Одно слово выходит почти всегда, три коротких — часто, фраза из пяти
+# русских слов — почти никогда. Латиница и цифры держатся заметно лучше
+# кириллицы, потому что их в обучающих данных вывесок на порядок больше.
+# Поэтому: до трёх слов, лучше латиницей, всё критичное — в PROMO_TEXT.
+BRAND_TAGLINE       = _opt("BRAND_TAGLINE", "")      # напр. "MIN DEP 1 USDT"
+BRAND_TAGLINE_RATIO = _f("BRAND_TAGLINE_RATIO", 0.35)  # доля шотов со слоганом
+
 # Промо-плашка сверху (наложение, не генерация).
 PROMO_TEXT       = _opt("PROMO_TEXT", "")            # пусто = плашки нет
 PROMO_SIZE_RATIO = _f("PROMO_SIZE_RATIO", 0.046)
@@ -177,6 +187,8 @@ MUSIC_VOLUME   = _f("MUSIC_VOLUME", 0.16)
 ENDCARD_ENABLED = _b("ENDCARD_ENABLED", False)
 ENDCARD_SEC     = _f("ENDCARD_SEC", 2.0)
 ENDCARD_BG      = _opt("ENDCARD_BG", "0x120A2E")
+# Срезать однотонные поля, если провайдер отдал кадр не в той пропорции.
+AUTOCROP_BARS   = _b("AUTOCROP_BARS", True)
 XFADE_SEC       = _f("XFADE_SEC", 0.0)               # 0 = жёсткие склейки (как в референсе)
 
 # ── ПРОЧЕЕ ─────────────────────────────────────────────────────────────────────

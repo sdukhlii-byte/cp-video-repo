@@ -81,11 +81,14 @@ FRAME_RULES = (
 # Когда бренд в кадре, запрет «никаких букв» снимается — но ТОЛЬКО для одного
 # слова. Иначе модель дорисовывает случайный текст на всех поверхностях, и кадр
 # превращается в кашу из нечитаемых надписей.
-def frame_rules_with_brand(brand: str) -> str:
+def frame_rules_with_brand(brand: str, tagline: str = "") -> str:
+    allowed = f"the word '{brand}'"
+    if tagline:
+        allowed = f"the word '{brand}' and the sign text '{tagline}'"
     return (
         "Vertical 9:16 frame. Keep the bottom 25% of the frame visually calm "
         "(no faces, no text, no busy signage) — captions are burned there. "
-        f"The ONLY text anywhere in the image is the single word '{brand}'. "
+        f"The ONLY text anywhere in the image is {allowed}. "
         "No other letters, words, slogans, captions or watermarks — leave every "
         "other sign, poster and label completely blank."
     )
@@ -98,6 +101,30 @@ SAFETY_CLAUSE = (
 
 
 # ── НАТИВНЫЙ ПЛЕЙСМЕНТ ─────────────────────────────────────────────────────────
+
+def build_tagline_clause(tagline: str, surface: str) -> str:
+    """
+    Короткая вывеска с сообщением бренда в ВЕРХНЕЙ части кадра.
+
+    Верх выбран не случайно: субтитры живут внизу, герой — в середине, и только
+    верхняя треть свободна. Плюс вывески в реальном мире висят именно там, так
+    что кадр не выглядит подстроенным под рекламу.
+
+    Текст просим набрать заглавными и просторно: модели заметно устойчивее
+    рисуют разрядку и капс, чем плотный строчный набор.
+    """
+    if not tagline:
+        return ""
+    surface = (surface or "a sign board high on the wall").strip()
+    return (
+        f" Signage: {surface} hangs in the upper third of the frame and reads "
+        f"exactly '{tagline}' — in clean bold capital letters with generous "
+        f"spacing, perfectly spelled, sharp and fully legible, lit so it stands "
+        f"out from the wall. It reads as permanent signage that belongs to this "
+        f"place, not a poster added later. Every character must be correct; "
+        f"render no other words anywhere in the frame."
+    )
+
 
 def build_brand_clause(brand: str, surface: str, mode: str = "native") -> str:
     """
@@ -136,11 +163,39 @@ def build_brand_clause(brand: str, surface: str, mode: str = "native") -> str:
 
 SCRIPT_SYSTEM = """You write short vertical narrated story videos (TikTok/Reels, 9:16).
 
-FORMAT (this is a strict genre, follow it):
-- A single off-screen narrator tells one story, in the target language.
-- ONE recurring main character appears in every shot, in different scenes and eras.
-- Each shot is a still-frame-like scene that gets subtle motion.
-- The pace is fast: one short narration line per shot, no filler words.
+## THE GENRE
+An off-screen narrator tells ONE story about ONE subject. It is not an essay and
+not an ad — it is a chain of concrete facts, each one earning the next second of
+attention. The viewer should feel they are learning something specific they can
+repeat to a friend.
+
+## NARRATIVE SPINE — follow this shape
+1. HOOK: name the thing the viewer already knows, then open the gap.
+   "Everyone has eaten this. But do you know where it came from?"
+2. COUNTER-INTUITIVE ORIGIN: what it actually was at the start, and it should
+   surprise. The bigger the gap from today, the better.
+3. THE STRANGE DETAIL: one concrete, slightly absurd specific from that era —
+   the part people quote to each other afterwards.
+4. THE TURN: a named person, a year and a place where everything changed.
+   Names and dates are the backbone of this genre. Never write "one man once" —
+   write who, when, where.
+5. THE BRIDGE TO TODAY: the second transformation, again with a place and a date.
+6. PAYOFF: one line that closes the loop opened by the hook.
+7. Optional last line: a curiosity CTA that sends the viewer to search something
+   specific ("type X into search and see what it looks like now").
+
+## SENTENCE RULES — this is what separates it from generic AI narration
+- Every sentence carries a FACT: a number, a name, a place, a date, an action.
+  A sentence that carries only mood is dead weight — cut it.
+- Concrete nouns over adjectives. "He added vinegar to the rice" beats
+  "he revolutionised the culinary world".
+- No filler openers: no "imagine", "it is worth noting", "few people know that",
+  "in the world of". Start on the fact.
+- No hype words: no "incredible", "shocking", "insane", "genius", "legendary".
+  The facts must do the work.
+- Vary sentence length. Two long, one short. The short ones land.
+- Speak the numbers the way a narrator says them out loud, in words, except for
+  years, which stay as digits.
 
 Return STRICT JSON only. No markdown fences, no commentary. Schema:
 
@@ -149,64 +204,65 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
   "language": "<target language code>",
   "hook": "3-6 word on-screen hook shown at the very start (target language)",
   "character": {
-    "name": "name",
-    "design": "ENGLISH visual bible of the character: age, build, face, hair, "
-              "signature clothing, distinguishing marks. Concrete and repeatable — "
-              "this exact description is reused for every shot."
+    "name": "name or role",
+    "design": "ENGLISH visual bible of the recurring subject: age, build, face, "
+              "hair, signature clothing, distinguishing marks. Concrete and "
+              "repeatable — this exact description is reused for every shot. "
+              "If the story has no single human subject, describe the recurring "
+              "FOCAL OBJECT (a dish, a machine, a product) at the same level of "
+              "concrete detail."
   },
   "world": "ENGLISH one-line description of the overall world/era range",
   "shots": [
     {
       "narration": "one line in the TARGET LANGUAGE, ~<WORDS> words",
-      "visual": "ENGLISH description of the PLACE only: location, era, time of day, "
-                "what fills the background. Do NOT describe the character's face or "
-                "clothes (that comes from the bible) and do NOT describe their pose "
-                "here — that goes in 'action'.",
-      "action": "ENGLISH: what the character is physically DOING in this shot, as a "
-                "continuous verb phrase — 'hunching over a keyboard, typing fast', "
-                "'shoving through a crowd', 'slamming a door', 'laughing with his head "
-                "back'. Never 'standing', 'posing' or 'looking at the camera'.",
-      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. Pick from: "
-                 "extreme close-up on the face; close-up on the hands; over-the-shoulder; "
-                 "from behind; low angle looking up; high angle looking down; wide shot "
-                 "with the character small in the frame; three-quarter medium shot.",
-      "motion": "ENGLISH one short line: what subtly moves and how the camera drifts",
-      "beat": "setup | build | turn | payoff",
+      "visual": "ENGLISH description of the PLACE only: location, era, time of "
+                "day, what fills the background. Do NOT describe the subject's "
+                "face or clothes, and do NOT describe their pose here.",
+      "action": "ENGLISH: what the subject is physically DOING in this shot, as "
+                "a continuous verb phrase — 'hunching over a keyboard, typing "
+                "fast', 'packing fish between layers of rice'. Never "
+                "'standing', 'posing' or 'looking at the camera'.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot: "
+                 "extreme close-up on the face; close-up on the hands; "
+                 "over-the-shoulder; from behind; low angle looking up; high "
+                 "angle looking down; wide shot with the subject small; "
+                 "three-quarter medium shot.",
+      "beat": "hook | origin | detail | turn | bridge | payoff | cta",
       "brand_surface": "ENGLISH: one concrete PHYSICAL object already present in "
                        "THIS scene that could plausibly carry a brand name — a "
-                       "barrel, a neon sign, a jersey, a poster, a crate, a banner, "
-                       "a cap, a coffee cup, a server rack. NEVER a screen, monitor, "
-                       "phone, website or app interface. Just the object, no brand "
-                       "name. Empty string if nothing fits."
+                       "barrel, a neon sign, a jersey, a poster, a crate, a "
+                       "banner, a cap, a coffee cup, a wooden box. NEVER a "
+                       "screen, monitor, phone, website or app interface. Just "
+                       "the object, no brand name. Empty string if nothing fits.",
+      "brand_surface_upper": "ENGLISH: a flat elevated surface high in the UPPER "
+                       "part of this scene that a short sign could live on — a "
+                       "hanging banner, a wall-mounted sign board, an illuminated "
+                       "light box, a painted wall panel above a doorway, a "
+                       "stadium ribbon board, a flag over the street. It must "
+                       "belong to this place and era. Empty string if nothing fits."
     }
   ],
-  "cta": "optional final line in the target language, or empty string"
+  "cta": "leave empty — if you want a CTA, make it the last shot's narration"
 }
 
 HARD RULES:
 1. Exactly <SHOTS> shots.
-2. Each narration line ~<WORDS> words. Never longer — the shot length is fixed.
-   Together they must read as ONE continuous sentence-stream, not separate captions.
+2. Each narration line ~<WORDS> words. Together they must read as ONE continuous
+   spoken paragraph — the lines are cut points for the edit, not separate captions.
+   Reading them end to end must sound like one person telling one story.
 3. Narration is spoken text: no emojis, no hashtags, no quotes, no parentheses,
-   no ALL-CAPS words. Write numbers as digits only when they are years.
-4. Every shot's visual must be a DIFFERENT place or era — visual variety carries
-   the video. Same character, new world each shot.
-5. Shot 1 must be the strongest image and open a curiosity loop.
-   The final shot resolves it.
-6. No real living people by name, no third-party brand logos, nothing sexual or violent.
-7. brand_surface must be an object that BELONGS in that scene and era — a 90s
-   market stall gets a cardboard box, a night club gets a neon sign. Never invent
-   an out-of-place billboard just to fit a brand.
-8. brand_surface must be a PHYSICAL surface, never a screen or a user interface.
-   Image models render fake UI text as garbled noise, so a brand name placed on a
-   monitor comes out misspelled and unreadable. Prefer large flat physical
-   surfaces facing the camera — they hold lettering far more reliably.
-9. Every shot needs a real 'action' — a verb the character is in the middle of.
-   A character who merely stands in a location reads as a cardboard cutout pasted
-   onto a background, and the whole video dies. If a beat has no natural action,
-   change the beat.
-10. 'framing' must change from shot to shot. Repeating the same medium
-    front-facing shot is the single fastest way to make a video look generated.
+   no ALL-CAPS words.
+4. At least three shots must contain a hard fact: a year, a name or a number.
+   A story without specifics is the failure mode of this genre.
+5. Every shot's visual must be a DIFFERENT place, era or moment.
+6. Shot 1 opens the curiosity loop. The final shot closes it.
+7. No real living people by name, no third-party brand logos, nothing sexual or
+   violent.
+8. brand_surface must belong to that scene and era, and must be physical, never
+   a screen or interface — image models render fake UI text as garbled noise.
+9. 'framing' must change from shot to shot. A repeated medium front-facing shot
+   is the fastest way to make a video look machine-made.
 """
 
 
@@ -257,7 +313,7 @@ def build_character_ref_prompt(character: dict, world: str = "", preset: str = "
 
 def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
                           preset: str = "", brand: str = "",
-                          brand_mode: str = "native") -> str:
+                          brand_mode: str = "native", tagline: str = "") -> str:
     """Кейфрейм шота. Персонаж приходит референс-картинкой, здесь — только сцена."""
     st = style(preset)
     name = str(character.get("name", "the character")).strip()
@@ -266,9 +322,13 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
     # Бренд ставим только в те шоты, которые помечены на этапе нормализации
     # сценария, и только если у сцены есть подходящая поверхность.
     use_brand = bool(brand) and bool(shot.get("brand"))
-    rules = frame_rules_with_brand(brand) if use_brand else FRAME_RULES
+    use_tagline = bool(tagline) and bool(shot.get("tagline"))
+    rules = (frame_rules_with_brand(brand, tagline if use_tagline else "")
+             if (use_brand or use_tagline) else FRAME_RULES)
     brand_clause = (build_brand_clause(brand, shot.get("brand_surface", ""), brand_mode)
                     if use_brand else "")
+    tagline_clause = (build_tagline_clause(tagline, shot.get("brand_surface_upper", ""))
+                      if use_tagline else "")
 
     action = str(shot.get("action") or "").strip()
     framing = str(shot.get("framing") or "").strip()
@@ -287,6 +347,7 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
         f"Art style: {st['image']}. "
         f"{rules}"
         f"{brand_clause}"
+        f"{tagline_clause}"
         f"{SAFETY_CLAUSE}"
     )
 
@@ -317,7 +378,7 @@ def build_motion_prompt(shot: dict, preset: str = "") -> str:
             " Any lettering already visible in the frame must stay perfectly "
             "still, sharp and unchanged — do not warp, redraw, animate or "
             "re-letter it as the shot moves."
-            if shot.get("brand") else
+            if (shot.get("brand") or shot.get("tagline")) else
             " No text, no subtitles, no watermark."
         )
     )

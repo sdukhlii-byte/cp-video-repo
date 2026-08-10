@@ -7,6 +7,8 @@ cli.py — единственная точка входа. Airtable/Telegram н�
               Работает БЕЗ ключей — с этого стоит начинать.
   models      Каталог моделей OpenRouter (подобрать актуальный слаг видеомодели).
   script      Сценарий по теме → JSON (только текстовая модель, дёшево).
+  fromtext    Свой текст озвучки → сценарий. Текст не переписывается ни на слово,
+              LLM придумывает только картинку к каждой реплике.
   prompts     Печатает ВСЕ промпты по готовому сценарию. Офлайн, без API.
   render      Сценарий (JSON) → mp4. Здесь тратятся деньги.
   make        script + render одной командой.
@@ -17,6 +19,8 @@ cli.py — единственная точка входа. Airtable/Telegram н�
   python3 cli.py models --filter veo
   python3 cli.py script --topic "история первого крипто-миллионера" --lang ru -o s.json
   python3 cli.py prompts s.json
+  python3 cli.py fromtext narration.txt --estimate      # разбивка и цена, без API
+  python3 cli.py fromtext narration.txt -o s.json
   python3 cli.py render s.json -o out.mp4
   python3 cli.py make --topic "как появился первый онлайн-казино-джекпот" -o out.mp4
 """
@@ -95,6 +99,16 @@ def cmd_doctor(args) -> None:
 
     # Частая ошибка: в переменную кладут слаг fal (fal-ai/...), а весь клиент
     # ходит в OpenRouter. Запрос вернёт 404, и фолбэк тихо не сработает.
+    if C.BRAND_NAME or C.BRAND_TAGLINE:
+        print("\n── Бренд в кадре ──")
+        print(f"  имя      {C.BRAND_NAME or '—'} (в {C.BRAND_SHOT_RATIO:.0%} шотов)")
+        tl = C.BRAND_TAGLINE
+        note = ""
+        if tl and len(tl) > 18:
+            note = f"  ← {len(tl)} знаков,высокий риск опечатки"
+        print(f"  слоган   {tl or '—'} (в {C.BRAND_TAGLINE_RATIO:.0%} шотов){note}")
+        print(f"  промо    {C.PROMO_TEXT or '—'} (наложение, опечаток не бывает)")
+
     print("\n── Слаги моделей ──")
     for name, val in (("VIDEO_MODEL", C.VIDEO_MODEL),
                       ("SECONDARY_VIDEO_MODEL", C.SECONDARY_VIDEO_MODEL),
@@ -175,6 +189,36 @@ def cmd_script(args) -> None:
         script["style_preset"] = args.style
     print(f"\n~{estimate_duration(script):.1f}с по тексту, {len(script['shots'])} шотов\n",
           file=sys.stderr)
+    _dump(script, args.out)
+
+
+# ── fromtext ───────────────────────────────────────────────────────────────────
+
+def cmd_fromtext(args) -> None:
+    from story import from_text
+
+    with open(args.textfile, encoding="utf-8") as f:
+        raw = f.read()
+    # Строки, начинающиеся с #, — комментарии: удобно держать в файле пометки
+    raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("#"))
+
+    if args.estimate:
+        est = from_text.estimate(raw, args.words)
+        print(f"Шотов:        {est['shots']}")
+        print(f"Слов:         {est['words']}")
+        print(f"Длина ролика: ~{est['seconds']}с")
+        print(f"Через модель: {est['animated_shots']} шотов "
+              f"= {est['video_seconds']}с видео (ANIMATE_RATIO={C.ANIMATE_RATIO})")
+        print("\nРазбивка по шотам:")
+        for i, line in enumerate(est["lines"], 1):
+            print(f"{i:3}. ({len(line.split())} сл.) {line}")
+        return
+
+    script = from_text.script_from_text(
+        raw, language=args.lang, hook=args.hook, extra=args.extra,
+        words_per_shot=args.words, model=args.model)
+    if args.style:
+        script["style_preset"] = args.style
     _dump(script, args.out)
 
 
@@ -287,6 +331,19 @@ def main() -> None:
     _script_args(p)
     p.add_argument("-o", "--out", default="")
     p.set_defaults(func=cmd_script)
+
+    p = sub.add_parser("fromtext", help="свой текст озвучки → сценарий")
+    p.add_argument("textfile", help="txt с текстом озвучки")
+    p.add_argument("-o", "--out", default="")
+    p.add_argument("--estimate", action="store_true",
+                   help="только разбивка и оценка, без вызовов API")
+    p.add_argument("--lang", default=C.LANG)
+    p.add_argument("--hook", default="", help="текст хука на экране")
+    p.add_argument("--extra", default="", help="арт-дирекшн для картинок")
+    p.add_argument("--words", type=int, default=0, help="слов на шот")
+    p.add_argument("--model", default="")
+    p.add_argument("--style", default="")
+    p.set_defaults(func=cmd_fromtext)
 
     p = sub.add_parser("prompts", help="печать всех промптов (офлайн)")
     p.add_argument("script")

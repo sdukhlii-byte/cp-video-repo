@@ -15,7 +15,8 @@
       "motion": "slow push-in from behind the row of monitors, screen glow flickering, smoke drifting",
       "beat": "setup",
       "brand_surface": "a paper poster taped to the wall above the monitors",
-      "action": "hunching over a scratched keyboard, hammering keys fast"
+      "action": "hunching over a scratched keyboard, hammering keys fast",
+      "brand_surface_upper": "a paper sign taped high on the wall above the monitors"
     },
     {
       "narration": "администратор выгонял его в шесть утра каждый день",
@@ -23,7 +24,8 @@
       "motion": "static wide shot with a slight drift upward, breath and dust moving in the cold light",
       "beat": "setup",
       "brand_surface": "",
-      "action": "shouldering the heavy door open and squinting at the daylight"
+      "action": "shouldering the heavy door open and squinting at the daylight",
+      "brand_surface_upper": "a metal sign board bolted over the basement doorway"
     },
     {
       "narration": "он выигрывал так часто, что его считали читером",
@@ -31,7 +33,8 @@
       "motion": "slow lateral drift past the crowd, faces turning, fluorescent light buzzing",
       "beat": "build",
       "brand_surface": "a printed banner stretched across the wall behind the table",
-      "action": "leaning back from the table as the crowd presses in, jaw tight"
+      "action": "leaning back from the table as the crowd presses in, jaw tight",
+      "brand_surface_upper": "a printed ribbon banner stretched high across the back wall"
     },
     {
       "narration": "его отстранили на два года и он почти ушёл",
@@ -39,7 +42,8 @@
       "motion": "gentle handheld sway of the bus, streetlights sliding across the glass",
       "beat": "build",
       "brand_surface": "a small advertising sticker on the bus window frame",
-      "action": "pressing his forehead against the cold window glass, eyes closed"
+      "action": "pressing his forehead against the cold window glass, eyes closed",
+      "brand_surface_upper": "an illuminated advertising panel above the bus windows"
     },
     {
       "narration": "но он вернулся и переписал свою игру с нуля",
@@ -47,7 +51,8 @@
       "motion": "slow push-in toward the monitors, replay footage moving on screen, dust in the dawn light",
       "beat": "turn",
       "brand_surface": "a mousepad on the desk",
-      "action": "scribbling over a diagram, crossing lines out and redrawing them"
+      "action": "scribbling over a diagram, crossing lines out and redrawing them",
+      "brand_surface_upper": "a pinned banner across the top of the wall above the desk"
     },
     {
       "narration": "через год он вышел на главную сцену континента",
@@ -55,7 +60,8 @@
       "motion": "slow rise revealing the crowd, phone lights twinkling, stage lights sweeping",
       "beat": "turn",
       "brand_surface": "the giant LED banner above the stage",
-      "action": "raising one hand slowly to the roaring crowd"
+      "action": "raising one hand slowly to the roaring crowd",
+      "brand_surface_upper": "the giant LED ribbon board above the arena stage"
     },
     {
       "narration": "он не стал звездой, он стал системой",
@@ -63,7 +69,8 @@
       "motion": "slow lateral track past the seated players toward the character, evening light shifting",
       "beat": "payoff",
       "brand_surface": "team jerseys on the backs of the seated players",
-      "action": "sweeping a marker across the whiteboard mid-sentence"
+      "action": "sweeping a marker across the whiteboard mid-sentence",
+      "brand_surface_upper": "a wall-mounted sign board above the whiteboard"
     },
     {
       "narration": "и теперь по его схемам играет весь регион",
@@ -71,7 +78,8 @@
       "motion": "slow push-in from behind, city lights flickering, clouds drifting",
       "beat": "payoff",
       "brand_surface": "an illuminated rooftop sign on a neighbouring building",
-      "action": "gripping the railing and leaning out over the drop"
+      "action": "gripping the railing and leaning out over the drop",
+      "brand_surface_upper": "an illuminated rooftop sign on the building opposite"
     }
   ],
   "cta": ""

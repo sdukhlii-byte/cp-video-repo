@@ -19,7 +19,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import config as C
-from story import captions, compose, export, visuals, voice
+from story import captions, compose, export, media, visuals, voice
 
 log = logging.getLogger("render")
 
@@ -36,7 +36,9 @@ def pick_animated(shots: list[dict], ratio: float) -> set[int]:
     n = len(shots)
     if ratio >= 1.0:
         return set(range(n))
-    want = max(1, round(n * max(ratio, 0.0)))
+    if ratio <= 0.0:
+        return set()          # 0 = вообще без видеомодели, весь ролик зумом
+    want = max(1, round(n * ratio))
     if want >= n:
         return set(range(n))
 
@@ -100,21 +102,24 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         log.info("Гибрид: через видеомодель %d из %d шотов (%s), остальные — зум",
                  len(animated), len(shots), sorted(animated))
 
-    clips: dict[int, str] = {}
-    from story import media
-    for i in range(len(shots)):
-        if i not in animated:
-            path = os.path.join(wd, f"shot_{i:02d}_raw.mp4")
-            media.ken_burns_clip(keyframes[i][1], path, durations[i],
-                                 C.VIDEO_W, C.VIDEO_H, C.FPS)
-            clips[i] = path
+    def _kenburns(i: int) -> tuple[str, float]:
+        path = os.path.join(wd, f"shot_{i:02d}_raw.mp4")
+        media.ken_burns_clip(keyframes[i][1], path, durations[i],
+                             C.VIDEO_W, C.VIDEO_H, C.FPS)
+        return path, 0.0
 
+    # Оба типа шотов кидаем в один пул: джобы видеомодели — это долгий поллинг,
+    # и гнать ffmpeg последовательно ДО их отправки значит просто так тянуть
+    # время на каждом прогоне.
+    clips: dict[int, str] = {}
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = {
-            ex.submit(visuals.animate, wd, i, keyframes[i][1], shots[i],
-                      durations[i], preset): i
-            for i in sorted(animated)
-        }
+        futs = {}
+        for i in range(len(shots)):
+            if i in animated:
+                futs[ex.submit(visuals.animate, wd, i, keyframes[i][1],
+                               shots[i], durations[i], preset)] = i
+            else:
+                futs[ex.submit(_kenburns, i)] = i
         for fut in as_completed(futs):
             i = futs[fut]
             path, c = fut.result()
@@ -143,10 +148,9 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         logo_path=logo_path or (C.LOGO_PATH if C.LOGO_ENABLED else ""),
     )
 
-    from story.media import probe_duration
     result = {
         "path": final,
-        "duration": probe_duration(final),
+        "duration": media.probe_duration(final),
         "shots": len(shots),
         "video_cost": round(cost, 3),
         "animated_shots": len(animated),

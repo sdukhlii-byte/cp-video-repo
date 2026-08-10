@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 logging.basicConfig(level="INFO", format="%(levelname)s [%(name)s] %(message)s")
 
 import config as C  # noqa: E402
-from story import media, orclient, visuals, voice  # noqa: E402
+from story import media, orclient, voice  # noqa: E402
 
 PALETTE = ["#1b2430", "#2d1b3d", "#123328", "#3d2415", "#16324a",
            "#3a1626", "#1f3a1f", "#2a2a3d"]

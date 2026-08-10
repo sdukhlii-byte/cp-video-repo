@@ -26,9 +26,10 @@ STYLE_PRESETS: dict[str, dict] = {
             "clear empty space across the bottom quarter of the frame for captions"
         ),
         "motion": (
-            "subtle cinematic motion only: slow push-in, gentle parallax, ambient life "
-            "in the background (light flicker, crowd sway, drifting smoke), "
-            "character stays on-model and barely moves, no camera whip, no cuts"
+            "the character performs their action naturally and continuously — "
+            "hands, head and posture move, weight shifts, eyes blink and look around; "
+            "background life continues around them (light flicker, crowd sway, "
+            "drifting smoke); camera moves slowly, no whip pans, no cuts"
         ),
         "negative": "photorealism, 3d render, blurry, smooth airbrush, text overlays",
     },
@@ -41,8 +42,8 @@ STYLE_PRESETS: dict[str, dict] = {
             "clean empty space across the bottom quarter for captions"
         ),
         "motion": (
-            "slow gentle camera push-in, soft ambient motion, drifting particles, "
-            "character stays on-model, no fast movement"
+            "the character keeps performing their action with natural body movement, "
+            "slow gentle camera push-in, soft ambient motion, drifting particles"
         ),
         "negative": "photorealism, 3d render, harsh contrast, text overlays",
     },
@@ -55,8 +56,8 @@ STYLE_PRESETS: dict[str, dict] = {
             "clean empty space across the bottom quarter for captions"
         ),
         "motion": (
-            "slow dolly-in with slight handheld breathing, atmospheric haze, "
-            "subject stays on-model, minimal movement"
+            "the character continues their action with believable body language, "
+            "slow dolly-in with slight handheld breathing, atmospheric haze"
         ),
         "negative": "cartoon, flat vector, text overlays",
     },
@@ -157,9 +158,18 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
   "shots": [
     {
       "narration": "one line in the TARGET LANGUAGE, ~<WORDS> words",
-      "visual": "ENGLISH description of the scene: location, era, time of day, "
-                "what the character is doing, what fills the background. "
-                "Do NOT re-describe the character's face/clothes — that comes from the bible.",
+      "visual": "ENGLISH description of the PLACE only: location, era, time of day, "
+                "what fills the background. Do NOT describe the character's face or "
+                "clothes (that comes from the bible) and do NOT describe their pose "
+                "here — that goes in 'action'.",
+      "action": "ENGLISH: what the character is physically DOING in this shot, as a "
+                "continuous verb phrase — 'hunching over a keyboard, typing fast', "
+                "'shoving through a crowd', 'slamming a door', 'laughing with his head "
+                "back'. Never 'standing', 'posing' or 'looking at the camera'.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. Pick from: "
+                 "extreme close-up on the face; close-up on the hands; over-the-shoulder; "
+                 "from behind; low angle looking up; high angle looking down; wide shot "
+                 "with the character small in the frame; three-quarter medium shot.",
       "motion": "ENGLISH one short line: what subtly moves and how the camera drifts",
       "beat": "setup | build | turn | payoff",
       "brand_surface": "ENGLISH: one concrete PHYSICAL object already present in "
@@ -191,6 +201,12 @@ HARD RULES:
    Image models render fake UI text as garbled noise, so a brand name placed on a
    monitor comes out misspelled and unreadable. Prefer large flat physical
    surfaces facing the camera — they hold lettering far more reliably.
+9. Every shot needs a real 'action' — a verb the character is in the middle of.
+   A character who merely stands in a location reads as a cardboard cutout pasted
+   onto a background, and the whole video dies. If a beat has no natural action,
+   change the beat.
+10. 'framing' must change from shot to shot. Repeating the same medium
+    front-facing shot is the single fastest way to make a video look generated.
 """
 
 
@@ -232,8 +248,9 @@ def build_character_ref_prompt(character: dict, world: str = "", preset: str = "
         f"Character: {design}. "
         f"{('World context: ' + world + '. ') if world else ''}"
         f"Art style: {st['image']}. "
-        f"The face and outfit must be crisp and readable — this sheet is reused "
-        f"as the identity reference for every following shot."
+        f"The face and outfit must be crisp and readable — this sheet is an "
+        f"IDENTITY reference only: it fixes the face, hair, build and clothing, "
+        f"and says nothing about pose, framing or camera angle."
         f"{SAFETY_CLAUSE}"
     )
 
@@ -253,10 +270,19 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
     brand_clause = (build_brand_clause(brand, shot.get("brand_surface", ""), brand_mode)
                     if use_brand else "")
 
+    action = str(shot.get("action") or "").strip()
+    framing = str(shot.get("framing") or "").strip()
+
     return (
         f"Single cinematic vertical frame. The SAME character as in the reference "
-        f"image ('{name}') — keep the face, hair and body type exactly on-model. "
-        f"Scene: {visual}. "
+        f"image ('{name}') — copy ONLY the face, hair, build and clothing. "
+        f"Do NOT copy the reference pose: the reference shows a neutral standing "
+        f"figure, this frame must show a different body position entirely. "
+        f"The character is mid-action, caught in the middle of doing something, "
+        f"never standing still facing the camera with arms at their sides. "
+        + (f"Action: {action}. " if action else "")
+        + (f"Camera: {framing}. " if framing else "")
+        + f"Scene: {visual}. "
         f"{('World: ' + world + '. ') if world else ''}"
         f"Art style: {st['image']}. "
         f"{rules}"
@@ -275,9 +301,14 @@ def build_motion_prompt(shot: dict, preset: str = "") -> str:
     st = style(preset)
     motion = str(shot.get("motion", "")).strip()
     visual = str(shot.get("visual", "")).strip()
+    action = str(shot.get("action", "")).strip()
     return (
         f"{visual}. "
-        f"{motion + '. ' if motion else ''}"
+        # Действие героя ставим ПЕРЕД окружением: если начать с декораций,
+        # модель оживляет фон и оставляет персонажа стоять манекеном.
+        + (f"The character is actively {action}, and keeps doing it throughout "
+           f"the shot with natural continuous body movement. " if action else "")
+        + f"{motion + '. ' if motion else ''}"
         f"{st['motion']}. "
         f"The scene is a real place, not an illustration or a screen: "
         f"animate the world itself. Hold the composition — the subject stays "

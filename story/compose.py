@@ -128,14 +128,23 @@ def make_endcard(dst: str, logo_path: str, seconds: float = 0.0) -> None:
 def compose(workdir: str, clips: list[str], durations: list[float],
             voice_wavs: list[str], ass_path: str, out_path: str,
             music_path: str = "", logo_path: str = "") -> str:
+    use_xfade = bool(C.XFADE_SEC) and len(clips) > 1
+
+    # Кроссфейд СЪЕДАЕТ время: склейка n клипов даёт sum(d) - (n-1)*xfade.
+    # Голос при этом остаётся полной длины, и после первой же склейки картинка
+    # начинает убегать вперёд, а к концу ролика расходится на секунды.
+    # Лечится компенсацией: каждый шот, кроме последнего, удлиняем ровно на
+    # длину перехода — тогда после наложения сумма снова равна sum(d),
+    # и начало каждого шота попадает туда же, где его ждут субтитры.
     norm = []
     for i, (clip, d) in enumerate(zip(clips, durations)):
         dst = os.path.join(workdir, f"norm_{i:02d}.mp4")
-        normalize_shot(clip, dst, d)
+        pad = C.XFADE_SEC if (use_xfade and i < len(clips) - 1) else 0.0
+        normalize_shot(clip, dst, d + pad)
         norm.append(dst)
 
     body = os.path.join(workdir, "body.mp4")
-    if C.XFADE_SEC and len(norm) > 1:
+    if use_xfade:
         xfade_concat(norm, body, C.XFADE_SEC, C.FPS, label="body_xfade")
     else:
         concat_demux(norm, body, workdir, reencode=False, label="body")

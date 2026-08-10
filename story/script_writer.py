@@ -67,13 +67,21 @@ def clean_narration(text: str) -> str:
     return t
 
 
-def _trim_words(text: str, max_words: int) -> str:
-    """Режет реплику по границе слов, если модель написала длиннее бюджета."""
-    words = text.split()
-    if len(words) <= max_words:
-        return text
-    log.warning("Реплика длиннее бюджета (%d>%d) — обрезаю", len(words), max_words)
-    return " ".join(words[:max_words])
+def _check_length(text: str, max_words: int, idx: int) -> str:
+    """
+    Раньше здесь реплика резалась по границе слов — и это было хуже болезни:
+    фраза обрывалась на середине, диктор произносил огрызок, а зритель читал
+    бессмыслицу. Лишняя секунда шота — меньшее зло, чем сломанное предложение.
+
+    Поэтому теперь только предупреждаем. Если шот перерастёт потолок клипа
+    видеомодели, об этом отдельно скажет visuals._quantize().
+    """
+    n = len(text.split())
+    if n > max_words:
+        log.warning("Шот %d: реплика %d слов при бюджете %d — шот станет длиннее "
+                    "плана. Если так во всех шотах, проверь WORDS_PER_SEC.",
+                    idx, n, max_words)
+    return text
 
 
 # ── НОРМАЛИЗАЦИЯ ───────────────────────────────────────────────────────────────
@@ -105,10 +113,12 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
             log.warning("Шот %d без visual — подставляю нейтральный", i)
             visual = f"the character in a new location relevant to: {narration}"
         out_shots.append({
-            "narration": _trim_words(narration, hard_max),
+            "narration": _check_length(narration, hard_max, i),
             "visual": visual,
             "motion": str(s.get("motion") or "").strip(),
             "beat": str(s.get("beat") or "").strip(),
+            "action": str(s.get("action") or "").strip(),
+            "framing": str(s.get("framing") or "").strip(),
             "brand_surface": str(s.get("brand_surface") or "").strip(),
         })
 
@@ -118,6 +128,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
     if len(out_shots) < 3:
         raise ValueError(f"Слишком мало валидных шотов: {len(out_shots)}")
 
+    _ensure_framing(out_shots)
     _assign_brand(out_shots)
 
     return {
@@ -130,6 +141,33 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
         "cta": clean_narration(data.get("cta") or ""),
         "style_preset": str(data.get("style_preset") or C.STYLE_PRESET),
     }
+
+
+# Ракурсы для подстраховки: если модель не заполнила framing или повторила
+# один и тот же, раскладываем по кругу. Однообразная средняя фронталка —
+# самый быстрый способ сделать ролик похожим на генерацию.
+_FRAMINGS = [
+    "three-quarter medium shot",
+    "extreme close-up on the face",
+    "over-the-shoulder from behind",
+    "low angle looking up",
+    "close-up on the hands",
+    "wide shot, character small in the frame",
+    "high angle looking down",
+    "profile shot from the side",
+]
+
+
+def _ensure_framing(shots: list[dict]) -> None:
+    used: list[str] = []
+    for i, sh in enumerate(shots):
+        f = sh.get("framing", "").strip()
+        if not f or (used and f.lower() == used[-1].lower()):
+            f = _FRAMINGS[i % len(_FRAMINGS)]
+            sh["framing"] = f
+        used.append(f)
+    if not any(sh.get("action") for sh in shots):
+        log.warning("Сценарий без действий персонажа — герой будет статичен в кадре")
 
 
 def _assign_brand(shots: list[dict]) -> None:

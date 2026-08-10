@@ -138,7 +138,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     # домен всегда написаны верно — в отличие от текста, который рисует модель.
     promo = promo or C.PROMO_TEXT
     if promo:
-        total = max((float(w["end"]) for w in words), default=5.0) + 0.6
+        # Последнее слово кончается раньше ролика на OUTRO_HOLD_SEC — без этого
+        # слагаемого плашка гасла за секунду до конца, на самом видном кадре.
+        total = (max((float(w["end"]) for w in words), default=5.0)
+                 + C.OUTRO_HOLD_SEC + 0.6)
         until = total if C.PROMO_FULL_VIDEO else min(C.PROMO_UNTIL_SEC, total)
         text = _esc(promo.upper()).replace("|", "\\N")   # «|» = перенос строки
         lines.append(f"Dialogue: 0,{_ts(0.0)},{_ts(until)},Promo,,0,0,0,,"

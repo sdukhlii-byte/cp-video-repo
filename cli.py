@@ -160,7 +160,7 @@ def cmd_models(args) -> None:
         pr = m.get("pricing") or {}
         price = pr.get("video") or pr.get("image") or pr.get("prompt") or "?"
         print(f"{m.get('id'):48} out={out:12} price={price}")
-    print(f"\nПодставь нужный слаг в VIDEO_MODEL (.env).")
+    print("\nПодставь нужный слаг в VIDEO_MODEL (.env).")
 
 
 # ── script ─────────────────────────────────────────────────────────────────────

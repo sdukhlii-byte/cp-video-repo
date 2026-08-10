@@ -13,49 +13,57 @@
       "narration": "в девяносто восьмом он собирал компьютер из чужого мусора",
       "visual": "cramped grey apartment room at dusk, the character kneeling over a half-assembled beige PC surrounded by cables, dust in the lamp light, faded wallpaper, a cracked window showing panel houses",
       "motion": "slow push-in toward the character, dust drifting in the lamp beam, monitor flicker",
-      "beat": "setup"
+      "beat": "setup",
+      "action": "kneeling over an open PC case, forcing a cable into a slot"
     },
     {
       "narration": "первый модем стоил дороже, чем месяц его работы",
       "visual": "narrow electronics market stall at night, the character holding a boxed modem, harsh fluorescent tubes overhead, shelves crammed with beige hardware, breath visible in cold air",
       "motion": "gentle handheld drift, flickering fluorescent light, background shoppers moving slowly",
-      "beat": "setup"
+      "beat": "setup",
+      "action": "turning a boxed modem over in his hands, checking the price sticker"
     },
     {
       "narration": "он играл ночами, пока весь подъезд спал",
       "visual": "dark room lit only by a CRT monitor, the character hunched in the chair seen from a low angle, the glow painting his face, a mug and scattered notes on the desk",
       "motion": "very slow dolly-in, monitor light pulsing, steam rising from the mug",
-      "beat": "build"
+      "beat": "build",
+      "action": "leaning into the monitor, one hand dragging across the mouse"
     },
     {
       "narration": "восемь лет подряд он проигрывал почти всё",
       "visual": "the same room years later, colder palette, the character sitting back from the desk with empty hands, walls covered in pinned printouts and crossed-out numbers",
       "motion": "static frame with a barely perceptible push-in, papers trembling in a draft",
-      "beat": "build"
+      "beat": "build",
+      "action": "shoving a stack of printouts off the desk"
     },
     {
       "narration": "а потом он перестал угадывать и начал считать",
       "visual": "the character at a wide desk with three monitors full of green charts, an open notebook of handwritten formulas, early morning blue light through the blinds",
       "motion": "slow lateral drift across the monitors, chart lines animating, blinds light shifting",
-      "beat": "turn"
+      "beat": "turn",
+      "action": "flipping through a notebook and jabbing at a formula with a pen"
     },
     {
       "narration": "в две тысячи семнадцатом его модель наконец сработала",
       "visual": "neon-lit night city rooftop, the character standing at the railing looking at his phone, skyline of glowing towers behind him, rain-wet concrete reflecting the signs",
       "motion": "slow rise and push-in, neon signs flickering, light rain drifting past",
-      "beat": "turn"
+      "beat": "turn",
+      "action": "gripping the wet railing, phone raised, reading the screen"
     },
     {
       "narration": "он не сорвал куш, он просто перестал терять",
       "visual": "quiet modern apartment at dawn, the character calmly closing a laptop at a clean table, warm sunrise light across the floor, city visible through a large window",
       "motion": "gentle push-in, sunlight slowly moving across the table, dust motes floating",
-      "beat": "payoff"
+      "beat": "payoff",
+      "action": "closing the laptop lid slowly and pushing back from the table"
     },
     {
       "narration": "и в этом вся разница между удачей и системой",
       "visual": "the character walking away down a bright empty street, seen from behind, tall glass buildings on both sides, long morning shadows",
       "motion": "slow tracking shot following him from behind, shadows shifting, distant traffic",
-      "beat": "payoff"
+      "beat": "payoff",
+      "action": "walking away from camera down the empty street, hands in pockets"
     }
   ],
   "cta": ""

@@ -5,7 +5,10 @@ story/render.py — оркестратор: сценарий → готовый 
   1. Референс персонажа        — одна картинка, от неё зависит вся консистентность
   2. Кейфреймы шотов           — параллельно, каждый с этим референсом
   3. ОЗВУЧКА                   — до анимации! длина озвучки d_i задаёт длину шота,
-                                 а значит и длину клипа, который надо заказать
+                                 а значит и длину клипа, который надо заказать.
+                                 Весь текст синтезируется ОДНИМ запросом, иначе
+                                 каждая реплика получает финальную интонацию и
+                                 речь звучит как набор оборванных фраз.
   4. Анимация шотов            — параллельно, длина квантуется под d_i
   5. Субтитры + сборка
 """
@@ -94,7 +97,7 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
     log.info("Кейфреймы готовы: %d", len(keyframes))
 
     # 3. Озвучка — ДО анимации, чтобы знать точную длину каждого шота
-    voice_wavs, durations, words = voice.synthesize_script(wd, script)
+    voice_track, durations, words = voice.build_track(wd, script)
 
     # 4. Анимация. Часть шотов может идти зумом из кейфрейма — см. ANIMATE_RATIO.
     animated = pick_animated(shots, C.ANIMATE_RATIO)
@@ -141,7 +144,7 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         wd,
         [clips[i] for i in range(len(shots))],
         durations,
-        voice_wavs,
+        voice_track,
         ass_path,
         out_path,
         music_path=music_path or C.MUSIC_PATH,

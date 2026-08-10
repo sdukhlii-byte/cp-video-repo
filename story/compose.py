@@ -3,9 +3,8 @@ story/compose.py — финальная сборка на ffmpeg.
 
   1. normalize_shot()  клип → ровно d_i секунд, VIDEO_WxVIDEO_H, fps, без звука
   2. concat_video()    склейка → body.mp4
-  3. concat_voice()    пошотовые wav, КАЖДЫЙ дополнен тишиной до d_i → voice.wav
-  4. burn()            видео + голос + музыка + ASS-субтитры (+лого) → body_final
-  5. endcard/final     опциональная эндкарта и финальная склейка
+  3. burn()            видео + голос + музыка + ASS-субтитры (+лого) → body_final
+  4. endcard/final     опциональная эндкарта и финальная склейка
 
 Инвариант синхрона: длина i-й озвучки в общей дорожке == d_i (длина i-го шота).
 Без него голос, картинка и субтитры расходятся, и дрейф копится к концу ролика.
@@ -44,20 +43,6 @@ def normalize_shot(src: str, dst: str, duration: float) -> None:
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(C.FPS),
         "-profile:v", "high", "-preset", "veryfast", dst,
     ], label="normalize")
-
-
-# ── 3. ГОЛОС С ПАДДИНГОМ ───────────────────────────────────────────────────────
-
-def concat_voice(wavs: list[str], durations: list[float], dst: str, workdir: str) -> None:
-    padded = []
-    for i, (w, d) in enumerate(zip(wavs, durations)):
-        p = os.path.join(workdir, f"_vpad_{i:02d}.wav")
-        run_ff([
-            "ffmpeg", "-y", "-i", w, "-af", "apad", "-t", f"{d:.3f}",
-            "-ar", "44100", "-ac", "2", p,
-        ], label="voice_pad")
-        padded.append(p)
-    concat_demux(padded, dst, workdir, reencode=False, label="voice")
 
 
 # ── 4. ПРОЖИГ ──────────────────────────────────────────────────────────────────
@@ -133,7 +118,7 @@ def make_endcard(dst: str, logo_path: str, seconds: float = 0.0) -> None:
 # ── ОРКЕСТРАТОР ────────────────────────────────────────────────────────────────
 
 def compose(workdir: str, clips: list[str], durations: list[float],
-            voice_wavs: list[str], ass_path: str, out_path: str,
+            voice_track: str, ass_path: str, out_path: str,
             music_path: str = "", logo_path: str = "") -> str:
     use_xfade = bool(C.XFADE_SEC) and len(clips) > 1
 
@@ -156,12 +141,9 @@ def compose(workdir: str, clips: list[str], durations: list[float],
     else:
         concat_demux(norm, body, workdir, reencode=False, label="body")
 
-    voice_wav = os.path.join(workdir, "voice_all.wav")
-    concat_voice(voice_wavs, durations, voice_wav, workdir)
-
     total = probe_duration(body)
     body_final = os.path.join(workdir, "body_final.mp4")
-    burn(body, voice_wav, ass_path, total, body_final,
+    burn(body, voice_track, ass_path, total, body_final,
          music_path=music_path, logo_path=logo_path)
 
     if C.ENDCARD_ENABLED and logo_path and os.path.exists(logo_path):

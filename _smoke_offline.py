@@ -53,7 +53,13 @@ def _stub_video(model, prompt, frame_image_url, duration_sec, label="", **kw):
 
 
 def _stub_tts(workdir, idx, text, retries=3):
-    """Тишина длиной по количеству слов + равномерные тайминги."""
+    """
+    Тишина длиной по количеству слов + равномерные тайминги.
+
+    Подменяет synthesize_line, поэтому работает и в режиме VOICE_MODE=whole:
+    туда приходит весь текст одним куском, и заглушка отдаёт сплошной список
+    слов — ровно как настоящий ответ ElevenLabs.
+    """
     words = text.split()
     per = 1.0 / C.WORDS_PER_SEC
     dur = len(words) * per + 0.25

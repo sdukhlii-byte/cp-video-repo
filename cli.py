@@ -123,7 +123,15 @@ def cmd_doctor(args) -> None:
     print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "
           f"= {C.planned_shot_count()} шотов, ~{C.words_per_shot()} слов на шот")
     print(f"  кадр {C.VIDEO_W}x{C.VIDEO_H} @{C.FPS}fps, стиль {C.STYLE_PRESET}")
-    print(f"  озвучка: {'ElevenLabs' if C.VOICE_ENABLED else 'ВЫКЛЮЧЕНА (субтитры + музыка)'}")
+    if C.VOICE_FILE:
+        mode = f"свой файл {os.path.basename(C.VOICE_FILE)} (forced alignment)"
+    elif not C.VOICE_ENABLED:
+        mode = "ВЫКЛЮЧЕНА (субтитры + музыка)"
+    elif C.VOICE_MODE == "whole":
+        mode = "ElevenLabs, весь текст одним запросом"
+    else:
+        mode = "ElevenLabs, по шоту за запрос — речь будет рваной"
+    print(f"  озвучка: {mode}")
     print(f"  видеомодель {C.VIDEO_MODEL} (фолбэк {C.SECONDARY_VIDEO_MODEL})")
 
     if args.render_test and ok:
@@ -248,6 +256,9 @@ def cmd_prompts(args) -> None:
 
 def cmd_render(args) -> None:
     from story.render import render
+    if args.voice:
+        os.environ["VOICE_FILE"] = args.voice
+        C.VOICE_FILE = args.voice
     s = _load(args.script)
     if args.style:
         s["style_preset"] = args.style
@@ -259,6 +270,9 @@ def cmd_render(args) -> None:
 def cmd_make(args) -> None:
     from story.render import render
     from story.script_writer import write_script
+    if args.voice:
+        os.environ["VOICE_FILE"] = args.voice
+        C.VOICE_FILE = args.voice
     s = write_script(topic=args.topic, language=args.lang, shots=args.shots,
                      words=args.words, extra=args.extra, vertical=args.vertical,
                      model=args.model)
@@ -354,6 +368,8 @@ def main() -> None:
         p.add_argument("--workdir", default="work")
         p.add_argument("--music", default="")
         p.add_argument("--logo", default="")
+        p.add_argument("--voice", default="",
+                       help="свой готовый mp3/wav озвучки; тайминги снимутся с него")
 
     p = sub.add_parser("render", help="сценарий → mp4")
     p.add_argument("script")

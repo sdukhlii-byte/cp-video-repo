@@ -202,3 +202,206 @@ def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float
              "Озвучка" if C.VOICE_ENABLED else "Дорожка без голоса",
              cursor, len(words_global))
     return wavs, durations, words_global
+
+# ── ЕДИНАЯ ДОРОЖКА: ВЕСЬ ТЕКСТ ОДНИМ ЗАПРОСОМ ─────────────────────────────────
+
+def join_narration(script: dict) -> tuple[str, list[int]]:
+    """
+    Склеивает реплики шотов в ОДИН текст для синтеза.
+
+    Возвращает (текст, [сколько слов в каждом шоте]). Счётчик слов нужен, чтобы
+    потом разложить пословные таймкоды обратно по шотам.
+
+    Точки в конце реплик расставляем осмысленно: реплика — это точка монтажа,
+    а не конец мысли. Точку ставим только там, где она была в тексте; иначе
+    склеиваем запятой, чтобы диктор не «дописывал» интонацию конца предложения
+    там, где мысль продолжается.
+    """
+    parts, counts = [], []
+    lines = [sh["narration"].strip() for sh in script["shots"]]
+    for i, line in enumerate(lines):
+        counts.append(len(line.split()))
+        if not line:
+            continue
+        last = i == len(lines) - 1
+        if line[-1] in ".!?…":
+            parts.append(line)
+        elif last:
+            parts.append(line + ".")
+        else:
+            # следующая реплика начинается с заглавной → это новое предложение
+            nxt = lines[i + 1]
+            parts.append(line + ("." if nxt[:1].isupper() else ","))
+    return " ".join(parts), counts
+
+
+def _split_by_counts(words: list[dict], counts: list[int]) -> list[list[dict]]:
+    """Раскладывает сплошной список слов обратно по шотам."""
+    out, pos = [], 0
+    for n in counts:
+        out.append(words[pos:pos + n])
+        pos += n
+    if pos < len(words) and out:
+        out[-1].extend(words[pos:])          # хвост от расхождения токенизации
+    return out
+
+
+def _durations_from_words(per_shot: list[list[dict]], total: float) -> list[float]:
+    """
+    Длина шота = до середины паузы перед следующей репликой.
+
+    Резать ровно по последнему слову нельзя: склейка попадёт на выдох, и монтаж
+    зазвучит рвано. Середина паузы — естественная точка реза.
+    """
+    bounds, prev_end = [], 0.0
+    for i, words in enumerate(per_shot):
+        if not words:
+            bounds.append(prev_end + C.MIN_SHOT_SEC)
+            prev_end = bounds[-1]
+            continue
+        end = float(words[-1]["end"])
+        nxt = None
+        for later in per_shot[i + 1:]:
+            if later:
+                nxt = float(later[0]["start"])
+                break
+        cut = (end + nxt) / 2 if nxt is not None else total
+        bounds.append(cut)
+        prev_end = cut
+
+    durations, prev = [], 0.0
+    for b in bounds:
+        durations.append(max(b - prev, C.MIN_SHOT_SEC))
+        prev = b
+    return durations
+
+
+def synthesize_whole(workdir: str, script: dict) -> tuple[str, list[float], list[dict]]:
+    """Один запрос на весь текст → непрерывная интонация."""
+    text, counts = join_narration(script)
+    log.info("Синтез одним запросом: %d знаков, %d слов",
+             len(text), sum(counts))
+    wav, duration, words = synthesize_line(workdir, 0, text)
+    os.replace(wav, os.path.join(workdir, "voice_all_raw.wav"))
+    wav = os.path.join(workdir, "voice_all_raw.wav")
+
+    per_shot = _split_by_counts(words, counts)
+    durations = _durations_from_words(per_shot, duration)
+
+    words_global = []
+    for i, chunk in enumerate(per_shot):
+        for w in chunk:
+            words_global.append({"word": w["word"], "start": float(w["start"]),
+                                 "end": float(w["end"]), "shot": i})
+    return wav, durations, words_global
+
+
+# ── СВОЯ ГОТОВАЯ ОЗВУЧКА ──────────────────────────────────────────────────────
+
+def align_external(workdir: str, script: dict,
+                   audio_path: str) -> tuple[str, list[float], list[dict]]:
+    """
+    Берёт готовый аудиофайл и снимает с него пословные таймкоды через
+    forced alignment ElevenLabs, сверяя со сценарным текстом.
+
+    Так работает вариант «озвучил сам или прогнал через студию — приклейте
+    субтитры»: тайминги снимаются с ЖИВОЙ речи, поэтому и субтитры, и нарезка
+    шотов ложатся ровно под неё.
+    """
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"VOICE_FILE не найден: {audio_path}")
+
+    text, counts = join_narration(script)
+    wav = os.path.join(workdir, "voice_all_raw.wav")
+    media.run_ff(["ffmpeg", "-y", "-i", audio_path, "-ar", "44100", "-ac", "2", wav],
+                 label="voice_in")
+    duration = media.probe_duration(wav)
+
+    url = f"{C.ELEVEN_BASE}/forced-alignment"
+    headers = {"xi-api-key": C.require("ELEVENLABS_API_KEY")}
+    with open(wav, "rb") as f:
+        r = requests.post(url, headers=headers, data={"text": text},
+                          files={"file": (os.path.basename(wav), f, "audio/wav")},
+                          timeout=300)
+    if r.status_code in (401, 402, 403):
+        raise TTSPaymentRequired(
+            f"Forced alignment: HTTP {r.status_code} — ключ, баланс или права.")
+    if not r.ok:
+        raise RuntimeError(
+            f"Forced alignment HTTP {r.status_code}: {r.text[:300]}. "
+            f"Если эндпоинт недоступен на твоём плане, оставь VOICE_FILE пустым "
+            f"и синтезируй через VOICE_MODE=whole."
+        )
+    data = r.json()
+
+    words = data.get("words") or []
+    if words:
+        parsed = [{"word": w.get("text") or w.get("word", ""),
+                   "start": float(w.get("start", 0.0)),
+                   "end": float(w.get("end", 0.0))} for w in words]
+        parsed = [w for w in parsed if w["word"].strip()]
+    else:
+        parsed = _words_from_alignment(data.get("characters") and data or {})
+    if not parsed:
+        raise RuntimeError("Forced alignment не вернул слов")
+
+    log.info("Своя озвучка: %.2fс, выровнено %d слов", duration, len(parsed))
+    per_shot = _split_by_counts(parsed, counts)
+    durations = _durations_from_words(per_shot, duration)
+    words_global = []
+    for i, chunk in enumerate(per_shot):
+        for w in chunk:
+            words_global.append({"word": w["word"], "start": w["start"],
+                                 "end": w["end"], "shot": i})
+    return wav, durations, words_global
+
+
+# ── СБОРКА ЗВУКОВОЙ ДОРОЖКИ ───────────────────────────────────────────────────
+
+def build_track(workdir: str, script: dict) -> tuple[str, list[float], list[dict]]:
+    """
+    Единая точка входа: отдаёт готовую дорожку, длины шотов и пословные тайминги.
+
+    Режимы, в порядке приоритета:
+      VOICE_FILE     — своя запись, тайминги снимаются с неё
+      VOICE_ENABLED=false — тишина, тайминги считаются из текста
+      VOICE_MODE=whole    — весь текст одним запросом (интонация непрерывная)
+      VOICE_MODE=per_shot — по шоту за запрос (звучит рвано, только для отладки)
+    """
+    if C.VOICE_FILE:
+        track, durations, words = align_external(workdir, script, C.VOICE_FILE)
+    elif C.VOICE_ENABLED and C.VOICE_MODE == "whole":
+        track, durations, words = synthesize_whole(workdir, script)
+    else:
+        # synthesize_script сам добавляет OUTRO_HOLD_SEC к последнему шоту
+        wavs, durations, words = synthesize_script(workdir, script)
+        raw = os.path.join(workdir, "voice_concat.wav")
+        _concat_padded(wavs, durations, raw, workdir)
+        return _pad_to(raw, sum(durations), workdir), durations, words
+
+    # Для whole/file хвост добавляем здесь: держим финальный кадр, чтобы
+    # последнее слово успело прочитаться.
+    if durations and C.OUTRO_HOLD_SEC > 0:
+        durations[-1] += C.OUTRO_HOLD_SEC
+    return _pad_to(track, sum(durations), workdir), durations, words
+
+
+def _concat_padded(wavs: list[str], durations: list[float], dst: str,
+                   workdir: str) -> str:
+    """Пошотовые wav, каждый добит тишиной до своей длины → одна дорожка."""
+    padded = []
+    for i, (w, d) in enumerate(zip(wavs, durations)):
+        p = os.path.join(workdir, f"_vpad_{i:02d}.wav")
+        media.run_ff(["ffmpeg", "-y", "-i", w, "-af", "apad", "-t", f"{d:.3f}",
+                      "-ar", "44100", "-ac", "2", p], label="voice_pad")
+        padded.append(p)
+    return media.concat_demux(padded, dst, workdir, reencode=False, label="voice")
+
+
+def _pad_to(src: str, seconds: float, workdir: str) -> str:
+    """Добивает дорожку тишиной до нужной длины (хвост под финальный кадр)."""
+    dst = os.path.join(workdir, "voice_all.wav")
+    media.run_ff(["ffmpeg", "-y", "-i", src, "-af", "apad",
+                  "-t", f"{seconds:.3f}", "-ar", "44100", "-ac", "2", dst],
+                 label="voice_tail")
+    return dst

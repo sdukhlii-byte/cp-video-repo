@@ -12,6 +12,8 @@ story/captions.py — караоке-субтитры (ASS/libass) в стиле
 
 from __future__ import annotations
 
+import random
+
 import config as C
 
 
@@ -87,11 +89,14 @@ def group_words(words: list[dict], min_sec: float = 0.0,
     return groups
 
 
-# Доля кегля на один символ у Montserrat ExtraBold. Замерено рендером:
-# заглавные шире строчных, поэтому коэффициенты разные. Нужно, чтобы прикинуть
-# ширину строки ДО рендера и решить, переносить её или уменьшать кегль.
-_CHAR_W_UPPER = 0.60
-_CHAR_W_LOWER = 0.50
+# Доля кегля на один символ у Montserrat ExtraBold. Замерено рендером на
+# кириллице и латинице: заглавные ~0.46, строчные ~0.41. Небольшой запас сверху
+# оставлен на пунктуацию и широкие буквы вроде Ш и Ж.
+# Коэффициенты нужны, чтобы прикинуть ширину строки ДО рендера и решить,
+# переносить её или уменьшать кегль. Завышать их нельзя: текст выйдет мельче,
+# чем мог бы, и плашка перестанет читаться с телефона.
+_CHAR_W_UPPER = 0.48
+_CHAR_W_LOWER = 0.43
 
 
 def _wrap(text: str, max_chars: int) -> list[str]:
@@ -130,6 +135,17 @@ def _fit_text(text: str, video_w: int, margin: int, fs: int,
         if (len(lines) <= max_lines and not too_wide) or fs <= min_fs:
             return "\\N".join(lines), fs
         fs = int(fs * 0.92)
+
+
+def pick_promo() -> str:
+    """
+    Фраза для верхней плашки: явный PROMO_TEXT, иначе случайная из пула
+    PROMO_TEXTS. Пул разделяется «;», внутри фразы «|» — перенос строки.
+    """
+    if C.PROMO_TEXT.strip():
+        return C.PROMO_TEXT.strip()
+    pool = [p.strip() for p in C.PROMO_TEXTS.split(";") if p.strip()]
+    return random.choice(pool) if pool else ""
 
 
 def _promo_color() -> str:
@@ -181,14 +197,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     # Промо-плашка. Рисуется наложением, а не генерацией, поэтому промокод и
     # домен всегда написаны верно — в отличие от текста, который рисует модель.
-    promo = promo or C.PROMO_TEXT
+    promo = promo or pick_promo()
     if promo:
         # Последнее слово кончается раньше ролика на OUTRO_HOLD_SEC — без этого
         # слагаемого плашка гасла за секунду до конца, на самом видном кадре.
         total = (max((float(w["end"]) for w in words), default=5.0)
                  + C.OUTRO_HOLD_SEC + 0.6)
         until = total if C.PROMO_FULL_VIDEO else min(C.PROMO_UNTIL_SEC, total)
-        text, pfs = _fit_text(_esc(promo.upper()), video_w, 50, promo_fs, max_lines=3)
+        text, pfs = _fit_text(_esc(promo.upper()), video_w, 40, promo_fs,
+                              max_lines=C.PROMO_MAX_LINES)
         size = f"\\fs{pfs}" if pfs != promo_fs else ""
         lines.append(f"Dialogue: 0,{_ts(0.0)},{_ts(until)},Promo,,0,0,0,,"
                      f"{{\\fad(200,200){size}}}{text}")

@@ -189,9 +189,17 @@ BRAND_SHOT_RATIO = _f("BRAND_SHOT_RATIO", 0.6)       # доля шотов с б
 BRAND_TAGLINE       = _opt("BRAND_TAGLINE", "")      # напр. "MIN DEP 1 USDT"
 BRAND_TAGLINE_RATIO = _f("BRAND_TAGLINE_RATIO", 0.35)  # доля шотов со слоганом
 
-# Промо-плашка сверху (наложение, не генерация).
+# Промо-плашка сверху (наложение ffmpeg, не генерация) — главный носитель
+# сообщения. Опечаток здесь не бывает никогда, поэтому именно сюда идёт всё,
+# что обязано быть буквально точным.
 PROMO_TEXT       = _opt("PROMO_TEXT", "")            # пусто = плашки нет
-PROMO_SIZE_RATIO = _f("PROMO_SIZE_RATIO", 0.046)
+
+# Пул фраз через «;» — на каждый ролик берётся случайная. Ротация нужна, чтобы
+# лента одного аккаунта не выглядела одним и тем же баннером на всех роликах.
+# Внутри фразы «|» по-прежнему означает принудительный перенос строки.
+PROMO_TEXTS      = _opt("PROMO_TEXTS", "")
+PROMO_MAX_LINES  = _i("PROMO_MAX_LINES", 3)
+PROMO_SIZE_RATIO = _f("PROMO_SIZE_RATIO", 0.058)
 PROMO_MARGIN_V   = _f("PROMO_MARGIN_V", 0.055)       # отступ сверху
 PROMO_COLOR      = _opt("PROMO_COLOR", "255,255,255")
 PROMO_FULL_VIDEO = _b("PROMO_FULL_VIDEO", True)      # висит весь ролик

@@ -109,6 +109,14 @@ def cmd_doctor(args) -> None:
         print(f"  слоган   {tl or '—'} (в {C.BRAND_TAGLINE_RATIO:.0%} шотов){note}")
         print(f"  промо    {C.PROMO_TEXT or '—'} (наложение, опечаток не бывает)")
 
+    from story.render import pick_music
+    track = pick_music()
+    print(f"\n── Музыка ──\n  {track or 'НЕТ — ролик будет без подложки'}")
+    if track:
+        print(f"  целевая громкость {C.MUSIC_LUFS} LUFS "
+              f"(~{abs(C.MUSIC_LUFS + 16):.0f} дБ ниже речи), "
+              f"дакинг {'вкл' if C.MUSIC_DUCKING else 'выкл'}")
+
     print("\n── Слаги моделей ──")
     for name, val in (("VIDEO_MODEL", C.VIDEO_MODEL),
                       ("SECONDARY_VIDEO_MODEL", C.SECONDARY_VIDEO_MODEL),

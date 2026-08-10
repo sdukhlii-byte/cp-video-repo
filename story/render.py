@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -56,6 +57,58 @@ def pick_animated(shots: list[dict], ratio: float) -> set[int]:
             break
         chosen.add(i)
     return chosen
+
+
+def _resolve(path: str) -> str:
+    """
+    Относительный путь считаем от корня проекта, а не от текущей директории.
+
+    Рабочую директорию задаёт та среда, что запускает контейнер, и полагаться
+    на неё нельзя: стоит ей отличаться от /app — и assets/music перестаёт
+    находиться, причём молча.
+    """
+    if not path or os.path.isabs(path):
+        return path
+    if os.path.exists(path):
+        return path
+    return os.path.join(C.ROOT, path)
+
+
+def pick_music() -> str:
+    """
+    Трек подложки: явный MUSIC_PATH либо случайный из папки MUSIC_DIR.
+
+    Каждый вариант отказа логируется громко. Раньше несуществующий путь молча
+    возвращал пустоту, ролик собирался без музыки, и в логе не было ни слова —
+    выглядело так, будто музыка есть, но не слышна.
+    """
+    if C.MUSIC_PATH:
+        path = _resolve(C.MUSIC_PATH)
+        if os.path.exists(path):
+            log.info("Подложка: %s", path)
+            return path
+        log.warning("MUSIC_PATH=%r НЕ НАЙДЕН (искал %s, рабочая папка %s) — "
+                    "смотрю MUSIC_DIR", C.MUSIC_PATH, path, os.getcwd())
+
+    if C.MUSIC_DIR:
+        mdir = _resolve(C.MUSIC_DIR)
+        if not os.path.isdir(mdir):
+            log.warning("MUSIC_DIR=%r не существует (искал %s) — БЕЗ МУЗЫКИ",
+                        C.MUSIC_DIR, mdir)
+            return ""
+        tracks = [os.path.join(mdir, f) for f in sorted(os.listdir(mdir))
+                  if f.lower().endswith((".mp3", ".m4a", ".wav", ".ogg", ".aac"))]
+        if tracks:
+            choice = random.choice(tracks)
+            log.info("Подложка: %s (из %d треков)", os.path.basename(choice), len(tracks))
+            return choice
+        log.warning("В MUSIC_DIR=%r нет аудиофайлов — ролик будет БЕЗ МУЗЫКИ. "
+                    "Положи туда mp3 и закоммить: файлы должны попасть в образ.",
+                    C.MUSIC_DIR)
+        return ""
+
+    log.info("MUSIC_PATH и MUSIC_DIR не заданы — ролик без музыки")
+    return ""
 
 
 def _workdir(base: str, title: str) -> str:
@@ -147,7 +200,7 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         voice_track,
         ass_path,
         out_path,
-        music_path=music_path or C.MUSIC_PATH,
+        music_path=music_path or pick_music(),
         logo_path=logo_path or (C.LOGO_PATH if C.LOGO_ENABLED else ""),
     )
 

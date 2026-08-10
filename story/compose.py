@@ -74,13 +74,36 @@ def burn(body: str, voice_wav: str, ass_path: str, total_dur: float, dst: str,
     else:
         fc += ";[vs]null[vout]"
 
-    fc += ";[1:a]aresample=44100[voc]"
-    if music_idx is not None:
-        fc += (f";[{music_idx}:a]volume={C.MUSIC_VOLUME},aresample=44100[mus]"
-               f";[voc][mus]amix=inputs=2:duration=first:dropout_transition=0,"
-               f"loudnorm=I=-16:TP=-1.5:LRA=11[aout]")
+    if music_idx is None:
+        fc += ";[1:a]aresample=44100,loudnorm=I=-16:TP=-1.5:LRA=11[aout]"
     else:
-        fc += ";[voc]loudnorm=I=-16:TP=-1.5:LRA=11[aout]"
+        fade_out = max(total_dur - C.MUSIC_FADE_SEC, 0.1)
+        # Голос нормализуем ДО микса, а не после. Иначе loudnorm приводит к
+        # -16 LUFS готовую смесь, и реальная громкость подложки начинает
+        # зависеть от того, насколько плотно в ролике говорят: в разговорном
+        # ролике музыки почти не слышно, в паузах она вылезает. После этой
+        # перестановки MUSIC_VOLUME означает ровно уровень относительно речи.
+        fc += (";[1:a]aresample=44100,loudnorm=I=-16:TP=-1.5:LRA=11,"
+               "asplit=2[voc][sc]")
+        fc += (f";[{music_idx}:a]aresample=44100,"
+               f"loudnorm=I={C.MUSIC_LUFS}:TP=-2:LRA=11,"
+               f"volume={C.MUSIC_VOLUME},"
+               f"afade=t=in:st=0:d={C.MUSIC_FADE_SEC:.2f},"
+               f"afade=t=out:st={fade_out:.2f}:d={C.MUSIC_FADE_SEC:.2f}[mus0]")
+        if C.MUSIC_DUCKING:
+            fc += (f";[mus0][sc]sidechaincompress="
+                   f"threshold={C.MUSIC_DUCK_THRESHOLD}:"
+                   f"ratio={C.MUSIC_DUCK_RATIO}:"
+                   f"attack=20:release=350[mus]")
+        else:
+            fc += ";[mus0]anull[mus];[sc]anullsink"
+        # normalize=0 обязателен: по умолчанию amix делит громкость на число
+        # входов, из-за чего и голос, и музыка теряют 6 дБ, а заданный
+        # MUSIC_VOLUME фактически оказывается вдвое меньше указанного.
+        # Лимитер вместо повторного loudnorm: он только ловит пики, не трогая
+        # соотношение голоса и музыки, которое мы только что выставили.
+        fc += (";[voc][mus]amix=inputs=2:duration=first:dropout_transition=0:"
+               "normalize=0,alimiter=limit=0.95[aout]")
 
     # БЕЗ -shortest: длину диктует видео; -t страхует от бесконечной музыки.
     run_ff([

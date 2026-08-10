@@ -192,6 +192,12 @@ def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float
         durations.append(d_i)
         cursor += d_i
 
+    # Держим финальный кадр, чтобы последнее слово успело прочитаться.
+    if durations and C.OUTRO_HOLD_SEC > 0:
+        durations[-1] += C.OUTRO_HOLD_SEC
+        cursor += C.OUTRO_HOLD_SEC
+        log.info("Хвост в конце: +%.1fс", C.OUTRO_HOLD_SEC)
+
     log.info("%s целиком: %.2fс, %d слов",
              "Озвучка" if C.VOICE_ENABLED else "Дорожка без голоса",
              cursor, len(words_global))

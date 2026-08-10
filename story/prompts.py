@@ -123,9 +123,11 @@ def build_brand_clause(brand: str, surface: str, mode: str = "native") -> str:
     return (
         f" Brand placement: {surface} carries the word '{brand}' in clean bold "
         f"letters, perfectly spelled and legible, integrated into the scene's "
-        f"lighting and materials as if it has always been there. It sits in the "
-        f"middle or upper part of the frame, noticeable but not blocking the "
-        f"character or the action."
+        f"lighting and materials as if it has always been there. The lettering is "
+        f"large enough to read at a glance on a phone screen — it spans most of "
+        f"that object's visible width. It sits in the middle or upper part of the "
+        f"frame, noticeable but not blocking the character or the action. "
+        f"Do not render any user interface, website or app layout anywhere in the frame."
     )
 
 
@@ -160,10 +162,12 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
                 "Do NOT re-describe the character's face/clothes — that comes from the bible.",
       "motion": "ENGLISH one short line: what subtly moves and how the camera drifts",
       "beat": "setup | build | turn | payoff",
-      "brand_surface": "ENGLISH: one concrete object already present in THIS scene "
-                       "that could plausibly carry a brand name — a barrel, a neon "
-                       "sign, a jersey, a poster, a crate, a monitor, a banner. "
-                       "Just the object, no brand name. Empty string if nothing fits."
+      "brand_surface": "ENGLISH: one concrete PHYSICAL object already present in "
+                       "THIS scene that could plausibly carry a brand name — a "
+                       "barrel, a neon sign, a jersey, a poster, a crate, a banner, "
+                       "a cap, a coffee cup, a server rack. NEVER a screen, monitor, "
+                       "phone, website or app interface. Just the object, no brand "
+                       "name. Empty string if nothing fits."
     }
   ],
   "cta": "optional final line in the target language, or empty string"
@@ -183,6 +187,10 @@ HARD RULES:
 7. brand_surface must be an object that BELONGS in that scene and era — a 90s
    market stall gets a cardboard box, a night club gets a neon sign. Never invent
    an out-of-place billboard just to fit a brand.
+8. brand_surface must be a PHYSICAL surface, never a screen or a user interface.
+   Image models render fake UI text as garbled noise, so a brand name placed on a
+   monitor comes out misspelled and unreadable. Prefer large flat physical
+   surfaces facing the camera — they hold lettering far more reliably.
 """
 
 

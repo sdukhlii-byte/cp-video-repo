@@ -19,7 +19,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import config as C
-from story import captions, compose, visuals, voice
+from story import captions, compose, export, visuals, voice
 
 log = logging.getLogger("render")
 
@@ -86,6 +86,10 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
     ass_path = os.path.join(wd, "captions.ass")
     captions.build_ass(words, ass_path, hook=script.get("hook", ""))
 
+    # Текстовые выгрузки — до сборки, чтобы они были на диске даже если
+    # ffmpeg упадёт на последнем шаге.
+    texts = export.write_all(wd, script, durations, words)
+
     final = compose.compose(
         wd,
         [clips[i] for i in range(len(shots))],
@@ -105,6 +109,7 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         "video_cost": round(cost, 3),
         "workdir": wd,
         "character_ref": ref_path,
+        "texts": texts,
     }
     log.info("ИТОГО: %.1fс, %d шотов, видео $%.2f", result["duration"],
              result["shots"], result["video_cost"])

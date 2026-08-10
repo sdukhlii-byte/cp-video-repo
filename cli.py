@@ -132,6 +132,15 @@ def cmd_doctor(args) -> None:
     else:
         mode = "ElevenLabs, по шоту за запрос — речь будет рваной"
     print(f"  озвучка: {mode}")
+    if C.NARRATION_TEXT:
+        src = f"NARRATION_TEXT ({len(C.NARRATION_TEXT)} знаков)"
+    elif os.environ.get("NARRATION_FILE"):
+        src = f"файл {os.environ['NARRATION_FILE']}"
+    elif os.environ.get("SCRIPT_FILE"):
+        src = f"сценарий {os.environ['SCRIPT_FILE']}"
+    else:
+        src = "генерируется LLM из TOPIC"
+    print(f"  текст:   {src}")
     print(f"  видеомодель {C.VIDEO_MODEL} (фолбэк {C.SECONDARY_VIDEO_MODEL})")
 
     if args.render_test and ok:
@@ -205,8 +214,12 @@ def cmd_script(args) -> None:
 def cmd_fromtext(args) -> None:
     from story import from_text
 
-    with open(args.textfile, encoding="utf-8") as f:
-        raw = f.read()
+    if args.textfile == "-":
+        raw = C.NARRATION_TEXT or sys.stdin.read()
+    else:
+        with open(args.textfile, encoding="utf-8") as f:
+            raw = f.read()
+    raw = raw.replace("\\n", "\n")
     # Строки, начинающиеся с #, — комментарии: удобно держать в файле пометки
     raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("#"))
 
@@ -217,6 +230,12 @@ def cmd_fromtext(args) -> None:
         print(f"Длина ролика: ~{est['seconds']}с")
         print(f"Через модель: {est['animated_shots']} шотов "
               f"= {est['video_seconds']}с видео (ANIMATE_RATIO={C.ANIMATE_RATIO})")
+        print(f"Примерно:     ~${est['cost_total']} "
+              f"(картинки ${est['cost_images']} + видео ${est['cost_video']})")
+        if est["shots"] > 16:
+            print(f"\n! {est['shots']} шотов — это дорого. Увеличь --words "
+                  f"или SHOT_TARGET_SEC, чтобы реплики были длиннее, "
+                  f"либо сократи текст.")
         print("\nРазбивка по шотам:")
         for i, line in enumerate(est["lines"], 1):
             print(f"{i:3}. ({len(line.split())} сл.) {line}")
@@ -347,7 +366,8 @@ def main() -> None:
     p.set_defaults(func=cmd_script)
 
     p = sub.add_parser("fromtext", help="свой текст озвучки → сценарий")
-    p.add_argument("textfile", help="txt с текстом озвучки")
+    p.add_argument("textfile",
+                   help="txt с текстом озвучки, либо «-» для stdin/NARRATION_TEXT")
     p.add_argument("-o", "--out", default="")
     p.add_argument("--estimate", action="store_true",
                    help="только разбивка и оценка, без вызовов API")

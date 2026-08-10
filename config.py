@@ -136,6 +136,12 @@ VOICE_MODE      = _opt("VOICE_MODE", "whole")
 # и нарезка шотов подстраиваются под ЖИВУЮ речь.
 VOICE_FILE      = _opt("VOICE_FILE", "")
 
+# Готовый текст озвучки прямо в переменной — самый быстрый способ задать речь
+# самому, без коммита файла в репозиторий. Текст не переписывается ни на слово:
+# LLM получает его уже разбитым на шоты и придумывает только картинку.
+# Приоритет: NARRATION_TEXT → NARRATION_FILE → SCRIPT_FILE → TOPIC.
+NARRATION_TEXT  = _opt("NARRATION_TEXT", "")
+
 ELEVEN_BASE     = "https://api.elevenlabs.io/v1"
 ELEVEN_VOICE_ID = _opt("ELEVEN_VOICE_ID", "")        # обязателен для render
 ELEVEN_MODEL    = _opt("ELEVEN_MODEL", "eleven_multilingual_v2")

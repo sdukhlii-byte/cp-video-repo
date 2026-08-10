@@ -7,7 +7,9 @@ run_job.py — одноразовый прогон для Railway: тема из
 расписанию (Settings → Cron Schedule).
 
 Переменные окружения:
-  NARRATION_FILE  путь к txt с готовым текстом озвучки. Текст не переписывается,
+  NARRATION_TEXT  текст озвучки ПРЯМО В ПЕРЕМЕННОЙ — вставил в Railway и всё.
+               Текст не переписывается, LLM придумывает только картинку.
+  NARRATION_FILE  то же самое, но текст лежит файлом в репозитории. Текст не переписывается,
                LLM придумывает только картинку к каждой реплике.
   SCRIPT_FILE  путь к утверждённому сценарию (JSON) — тогда TOPIC игнорируется
                и LLM не вызывается вообще. Это способ получить ПРЕДСКАЗУЕМЫЙ
@@ -53,10 +55,23 @@ def pick_topic() -> str:
 def main() -> None:
     from story.script_writer import coerce, estimate_duration, write_script
 
+    narration_text = C.NARRATION_TEXT.strip()
     narration_file = os.environ.get("NARRATION_FILE", "").strip()
     script_file = os.environ.get("SCRIPT_FILE", "").strip()
 
-    if narration_file:
+    if narration_text:
+        # Railway хранит перевод строки как есть, но при вставке из редактора
+        # он иногда приезжает экранированным — разворачиваем оба варианта.
+        raw = narration_text.replace("\\n", "\n")
+        raw = "\n".join(l for l in raw.splitlines()
+                         if not l.strip().startswith("#"))
+        from story import from_text
+        script = from_text.script_from_text(
+            raw, language=C.LANG, hook=os.environ.get("HOOK", ""),
+            extra=os.environ.get("EXTRA_DIRECTION", ""))
+        topic = "текст из NARRATION_TEXT"
+        log.info("Сценарий из переменной NARRATION_TEXT (%d знаков)", len(raw))
+    elif narration_file:
         # Свой текст: авторская интонация и порядок фактов сохраняются дословно.
         if not os.path.exists(narration_file):
             raise SystemExit(f"NARRATION_FILE={narration_file} не найден")

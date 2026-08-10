@@ -188,8 +188,16 @@ def estimate(text: str, words_per_shot: int = 0) -> dict:
         0, round(len(lines) * C.ANIMATE_RATIO))
     clip = min(d for d in C.VIDEO_ALLOWED_DURS
                if d >= C.SHOT_TARGET_SEC) if C.VIDEO_ALLOWED_DURS else 4
+    # Грубая оценка расхода. Цена картинки замерена по логам живых прогонов
+    # ($0.0393 за кейфрейм), цена видео — порядок величины для fast-тарифа Veo.
+    # Это ориентир, чтобы увидеть масштаб ДО трат, а не счёт.
+    img_cost = (len(lines) + 1) * 0.04
+    vid_cost = animated * clip * 0.15
     return {
         "shots": len(lines),
+        "cost_images": round(img_cost, 2),
+        "cost_video": round(vid_cost, 2),
+        "cost_total": round(img_cost + vid_cost + 0.07, 2),
         "words": total_words,
         "seconds": round(seconds, 1),
         "animated_shots": animated,

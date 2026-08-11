@@ -83,20 +83,41 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "negative": "photorealism, 3d render, harsh contrast, text overlays",
     },
-    # Пиксель + объём: пиксельная фактура на трёхмерных формах.
-    "pixel_3d": {
+    # Воксель: кадр СОБРАН ИЗ КУБИКОВ. Формулировка однозначная — раньше здесь
+    # было «воксельные формы + настоящая глубина резкости», и модель каждый раз
+    # выбирала между двумя видами по-своему.
+    "voxel": {
         "image": (
-            "hybrid style: voxel-like 3D forms rendered with a 16-bit pixel-art "
-            "surface treatment — volumetric lighting and real depth of field, but "
-            "quantised pixel texture and a limited retro palette, glossy "
-            "reflections, cinematic vertical composition, subject from chest up in "
-            "the lower-middle third, clear empty space across the bottom quarter"
+            "voxel art: every object in the scene is built from visible cubic "
+            "blocks, including hair, fabric and foliage, blocky stair-stepped "
+            "silhouettes, chunky quantised texture, limited retro palette, "
+            "soft global illumination, cinematic vertical composition, subject "
+            "from chest up in the lower-middle third, clear empty space across "
+            "the bottom quarter"
         ),
         "motion": (
-            "the character keeps performing their action with weighty three-"
-            "dimensional movement, volumetric light shifting, slow dolly-in"
+            "the character keeps performing their action with weighty blocky "
+            "movement, light shifting across the cubic surfaces, slow dolly-in"
         ),
-        "negative": "flat vector, photorealism, text overlays",
+        "negative": "smooth surfaces, photorealism, flat vector, text overlays",
+    },
+    # Гладкий стилизованный 3D — вид анимационного полного метра.
+    # Ровно то, что получается, когда кадр проходит через видеомодель.
+    "stylized_3d": {
+        "image": (
+            "stylised 3D animation still, feature-film CG look, smooth clean "
+            "surfaces, soft subsurface skin shading, expressive stylised "
+            "proportions, warm cinematic key light with soft shadows, shallow "
+            "depth of field, rich but natural palette, cinematic vertical "
+            "composition, subject from chest up in the lower-middle third, "
+            "clear empty space across the bottom quarter"
+        ),
+        "motion": (
+            "the character keeps performing their action with smooth weighty "
+            "animation, hair and clothing following the movement, soft light "
+            "shifting, slow cinematic dolly-in"
+        ),
+        "negative": "voxel, pixel art, photorealism, flat vector, text overlays",
     },
     # По бренд-буку Coinplay: 3D-неон, фиолет и маджента, пузырьковые кластеры
     # на глубоком тёмно-фиолетовом фоне. Это не пиксель-арт — это фирменный вид
@@ -458,6 +479,20 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
     )
 
 
+def _style_anchor(st: dict) -> str:
+    """
+    Короткая выжимка стиля для промпта движения.
+
+    Без неё image-to-video модель получает только описание сцены и «дорисовывает»
+    кадр в свой дефолтный гладкий рендер: воксельная фактура сглаживается,
+    пиксельная сетка исчезает, и шоты, прошедшие через видеомодель, начинают
+    выглядеть иначе, чем шоты, оставшиеся зумом из кейфрейма. В одном ролике
+    получаются два разных визуальных языка.
+    """
+    head = st["image"].split(",")[:4]
+    return ", ".join(part.strip() for part in head)
+
+
 def build_motion_prompt(shot: dict, preset: str = "") -> str:
     """
     Промт движения для image-to-video.
@@ -479,7 +514,13 @@ def build_motion_prompt(shot: dict, preset: str = "") -> str:
         f"{st['motion']}. "
         f"The scene is a real place, not an illustration or a screen: "
         f"animate the world itself. Hold the composition — the subject stays "
-        f"in frame the whole time. No cuts, no new text appearing."
+        f"in frame the whole time. No cuts, no new text appearing. "
+        # Стиль повторяем и требуем сохранить: иначе видеомодель приводит кадр
+        # к своему рендеру по умолчанию, и стилизация исходника теряется.
+        f"CRITICAL — preserve the exact art style of the source frame: "
+        f"{_style_anchor(st)}. Keep the same texture, the same level of detail "
+        f"and the same colour palette as the first frame. Do not smooth, "
+        f"re-render, upgrade or realistically re-interpret the image."
         + (
             " Any lettering already visible in the frame must stay perfectly "
             "still, sharp and unchanged — do not warp, redraw, animate or "

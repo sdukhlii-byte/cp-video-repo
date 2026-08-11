@@ -115,7 +115,9 @@ def main() -> None:
 
     caption = (f"{script['title']}\n{topic}\n"
                f"{res['duration']:.0f}с · {res['shots']} шотов · "
-               f"видео ${res['video_cost']:.2f}")
+               f"видео ${res['video_cost']:.2f}\n"
+               f"стиль: {res.get('style_preset')}"
+               + (f" + {res['style_extra']}" if res.get("style_extra") else ""))
     deliver.send_video(res["path"], caption)
     # Текст отдельным файлом — чтобы можно было озвучить своим голосом или
     # другим TTS, не выковыривая реплики из логов.

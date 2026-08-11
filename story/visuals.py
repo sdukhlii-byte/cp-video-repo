@@ -92,7 +92,12 @@ def keyframe(workdir: str, idx: int, shot: dict, character: dict,
                 prompt, ref_urls=refs or None, aspect_ratio=C.ASPECT, label=f"kf{idx}")
             _save(data, path)
             if label == "no-ref":
-                log.warning("Кейфрейм %d собран БЕЗ референса — персонаж может «поплыть»", idx)
+                log.warning("Кейфрейм %d собран БЕЗ референса — персонаж может "
+                            "«поплыть». Обычная причина: промпт цепляет "
+                            "контент-фильтр, чаще всего из-за STYLE_EXTRA", idx)
+            elif label == "safe":
+                log.warning("Кейфрейм %d собран по смягчённому промпту (%s) — "
+                            "основной вариант отклонён фильтром", idx, label)
             else:
                 log.info("Кейфрейм %d готов (%s): %s", idx, label, path)
             return _data_uri(path), path

@@ -128,7 +128,31 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         json.dump(script, f, ensure_ascii=False, indent=2)
 
     shots = script["shots"]
-    preset = script.get("style_preset", C.STYLE_PRESET)
+
+    # Пресет живёт в двух местах: в переменной окружения и запечённым в сценарии
+    # (туда он попадает в момент генерации). Раньше сценарий побеждал молча —
+    # поменяв STYLE_PRESET, можно было отрендерить старый стиль и не понять,
+    # почему два ролика выглядят по-разному. Теперь явно заданная переменная
+    # побеждает, а расхождение попадает в лог.
+    baked = str(script.get("style_preset") or "").strip()
+    if C.STYLE_PRESET_EXPLICIT and baked and baked != C.STYLE_PRESET:
+        log.warning("В сценарии записан стиль %r, но STYLE_PRESET=%r — "
+                    "беру переменную окружения", baked, C.STYLE_PRESET)
+        preset = C.STYLE_PRESET
+    else:
+        preset = baked or C.STYLE_PRESET
+
+    # Пишем активный стиль в лог. Без этого сравнить два прогона задним числом
+    # невозможно: ролики выходят разными, а чем именно отличались настройки —
+    # уже не восстановить.
+    from story.prompts import style as _style
+    st = _style(preset)
+    log.info("Стиль: %s%s%s", preset,
+             " + STYLE_EXTRA" if C.STYLE_EXTRA else "",
+             " (STYLE_IMAGE переопределён)" if C.STYLE_IMAGE else "")
+    log.info("  картинка: %s", st["image"][:160])
+    if C.STYLE_EXTRA:
+        log.info("  STYLE_EXTRA: %s", C.STYLE_EXTRA)
     world = script.get("world", "")
     character = script["character"]
     cost = 0.0
@@ -221,6 +245,8 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
         "shots": len(shots),
         "video_cost": round(cost, 3),
         "animated_shots": len(animated),
+        "style_preset": preset,
+        "style_extra": C.STYLE_EXTRA,
         "workdir": wd,
         "character_ref": ref_path,
         "texts": texts,

@@ -272,6 +272,10 @@ XFADE_SEC       = _f("XFADE_SEC", 0.0)               # 0 = жёсткие скл
 MAX_PARALLEL_JOBS = _i("MAX_PARALLEL_JOBS", 3)
 KEEP_WORKDIR      = _b("KEEP_WORKDIR", True)
 STYLE_PRESET      = _opt("STYLE_PRESET", "pixel_story")
+# Задан ли пресет ЯВНО. Нужно, чтобы отличить «пользователь выбрал стиль» от
+# «сработал дефолт»: в первом случае переменная должна побеждать пресет,
+# запёкшийся в сценарии, во втором — наоборот.
+STYLE_PRESET_EXPLICIT = bool(os.environ.get("STYLE_PRESET", "").strip())
 
 # Переопределения стиля без правки кода. STYLE_EXTRA дописывается к пресету
 # (самый частый случай: «тот же вид, но добавь вот это»), а STYLE_IMAGE /

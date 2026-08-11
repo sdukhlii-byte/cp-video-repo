@@ -26,6 +26,22 @@ BLACK   = _ass(0, 0, 0)
 SHADOW  = _ass(0, 0, 0, 0x50)
 
 
+def _word_style_params(outline: float) -> tuple[int, float, float, str]:
+    """
+    (BorderStyle, Outline, Shadow, BackColour) под выбранное оформление.
+
+    BorderStyle=1 — обводка вокруг глифов, =3 — заливка прямоугольником позади
+    текста; во втором случае Outline работает как внутренний отступ подложки.
+    """
+    if C.CAPTION_STYLE == "box":
+        return 3, round(outline * 0.45, 1), 0.0, _ass(0, 0, 0, C.CAPTION_BOX_ALPHA)
+    if C.CAPTION_STYLE == "glow":
+        # Обводка тоньше, но добавлена мягкая тень — контур не «жирнеет»,
+        # а текст всё равно отделяется от любого фона.
+        return 1, round(outline * 0.72, 1), round(outline * 0.5, 1), _ass(0, 0, 0, 0x60)
+    return 1, outline, C.CAPTION_SHADOW, SHADOW
+
+
 def _ts(t: float) -> str:
     """Секунды → H:MM:SS.cc"""
     t = max(t, 0.0)
@@ -41,12 +57,44 @@ def _esc(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
+# Пунктуация в караоке-плашке — чистый мусор: точка или запятая висят рядом с
+# одним словом без всякого смысла, а из таймкодов они приходят почти в каждом
+# токене. Дефис внутри слова оставляем: «спейс-икс» это одно слово.
+_PUNCT = ".,!?;:…\"'«»„“”()[]{}"
+
+
+def _strip_punct(text: str) -> str:
+    return text.strip(_PUNCT).replace(",,", ",").strip(_PUNCT)
+
+
+def _keep_case(word: str) -> bool:
+    """
+    Аббревиатуры и римские цифры регистр не меняют.
+
+    Без этого «World War II» превращается в «war ii», а «BTC» в «btc» — то есть
+    в нечитаемый мусор. Признак: слово целиком в верхнем регистре и короткое,
+    либо содержит цифры.
+    """
+    core = word.strip(_PUNCT)
+    if not core:
+        return False
+    if any(ch.isdigit() for ch in core):
+        return True
+    return core.isupper() and len(core) <= 4
+
+
 def _case(text: str) -> str:
-    if C.CAPTION_CASE == "upper":
-        return text.upper()
-    if C.CAPTION_CASE == "lower":
-        return text.lower()
-    return text
+    if C.CAPTION_CASE == "as_is":
+        return text
+    out = []
+    for w in text.split():
+        if _keep_case(w):
+            out.append(w)
+        elif C.CAPTION_CASE == "upper":
+            out.append(w.upper())
+        else:
+            out.append(w.lower())
+    return " ".join(out)
 
 
 def group_words(words: list[dict], min_sec: float = 0.0,
@@ -65,7 +113,7 @@ def group_words(words: list[dict], min_sec: float = 0.0,
                 and (groups[-1]["end"] - groups[-1]["start"]) < min_sec
                 and groups[-1]["n"] < max_words):
             g = groups[-1]
-            g["text"] = f"{g['text']} {w['word']}"
+            g["text"] = f"{g['text']} {_strip_punct(w['word'])}".strip()
             g["end"] = float(w["end"])
             g["accent"] = g.get("accent") or bool(w.get("accent"))
             g["n"] += 1
@@ -76,20 +124,20 @@ def group_words(words: list[dict], min_sec: float = 0.0,
                 and groups[-1]["n"] < max_words
                 and (float(w["start"]) - groups[-1]["end"]) < 0.12):
             g = groups[-1]
-            g["text"] = f"{g['text']} {w['word']}"
+            g["text"] = f"{g['text']} {_strip_punct(w['word'])}".strip()
             g["end"] = float(w["end"])
             g["accent"] = g.get("accent") or bool(w.get("accent"))
             g["n"] += 1
             continue
         groups.append({
-            "text": w["word"],
+            "text": _strip_punct(w["word"]),
             "start": float(w["start"]),
             "end": float(w["end"]),
             "shot": w.get("shot"),
             "accent": bool(w.get("accent")),
             "n": 1,
         })
-    return groups
+    return [g for g in groups if g["text"].strip()]
 
 
 # Доля кегля на один символ у Montserrat ExtraBold. Замерено рендером на
@@ -187,6 +235,8 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
     shadow   = C.CAPTION_SHADOW
     font     = C.CAPTION_FONT
 
+    w_border, w_outline, w_shadow, w_back = _word_style_params(outline)
+
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {video_w}
@@ -196,7 +246,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,60,60,{margin_v},1
+Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{w_back},-1,0,0,0,100,100,0,0,{w_border},{w_outline},{w_shadow},2,60,60,{margin_v},1
 Style: Hook,{font},{hook_fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},8,60,60,{int(video_h*0.17)},1
 Style: Promo,{font},{promo_fs},{_promo_color()},{_promo_color()},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{promo_outline},{shadow},8,50,50,{int(video_h*C.PROMO_MARGIN_V)},1
 
@@ -247,8 +297,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if end <= start:
             end = start + 0.12
 
-        pop = ("{\\fad(30,30)\\t(0,80,\\fscx100\\fscy100)\\fscx86\\fscy86}"
-               if C.CAPTION_POP else "{\\fad(30,30)}")
+        # Появление: слово выскакивает из 88% в 104% и оседает в 100%.
+        # Лёгкий перелёт читается как «щелчок» и заметен боковым зрением —
+        # именно он держит взгляд на плашке при быстрой смене слов.
+        pop = ("{\\fad(25,25)\\fscx88\\fscy88"
+               "\\t(0,70,\\fscx104\\fscy104)\\t(70,130,\\fscx100\\fscy100)}"
+               if C.CAPTION_POP else "{\\fad(25,25)}")
         wtext, wfs = _fit_text(_esc(_case(g["text"])), video_w, 60, fs, max_lines=1)
         wsize = f"\\fs{wfs}" if wfs != fs else ""
         # Ключевое слово шота красим: смена цвета цепляет глаз сильнее, чем

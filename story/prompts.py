@@ -98,6 +98,26 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "negative": "flat vector, photorealism, text overlays",
     },
+    # По бренд-буку Coinplay: 3D-неон, фиолет и маджента, пузырьковые кластеры
+    # на глубоком тёмно-фиолетовом фоне. Это не пиксель-арт — это фирменный вид
+    # сайта и баннеров, перенесённый в вертикальное видео.
+    "coinplay_brand": {
+        "image": (
+            "3D neon render style: soft-textured dimensional subjects lit by "
+            "violet and magenta light, floating translucent bubble clusters "
+            "wrapping the figure, deep purple background (#09001B to #4110A4) "
+            "with a radial magenta glow behind the subject, glossy premium "
+            "finish, duotone violet-to-magenta rim lighting, never flat colour, "
+            "cinematic vertical composition, subject framed from chest up in the "
+            "lower-middle third, clear empty space across the bottom quarter"
+        ),
+        "motion": (
+            "the subject keeps performing their action with weighty three-"
+            "dimensional movement, translucent bubbles drifting and rotating "
+            "slowly around them, neon glow pulsing, slow cinematic push-in"
+        ),
+        "negative": "flat colour, pixel art, photorealistic documentary, text overlays",
+    },
     # Кинематографичный «нуар»-док для серьёзных историй.
     "cinematic_doc": {
         "image": (

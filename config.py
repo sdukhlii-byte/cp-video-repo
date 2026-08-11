@@ -175,7 +175,8 @@ CAPTION_POP        = _b("CAPTION_POP", True)         # лёгкий «пых» �
 # цвета сильнее, чем за смену слова, поэтому подсветка фактов удерживает
 # внимание там, где зритель обычно отваливается — в середине ролика.
 CAPTION_ACCENT       = _b("CAPTION_ACCENT", True)
-CAPTION_ACCENT_COLOR = _opt("CAPTION_ACCENT_COLOR", "255,214,64")   # тёплый жёлтый
+# #FFE145 — акцентный жёлтый из бренд-бука Coinplay.
+CAPTION_ACCENT_COLOR = _opt("CAPTION_ACCENT_COLOR", "255,225,69")
 
 # ── БРЕНД В КАДРЕ ──────────────────────────────────────────────────────────────
 # Два независимых слоя, и это принципиально:
@@ -250,7 +251,7 @@ MUSIC_DUCK_THRESHOLD = _f("MUSIC_DUCK_THRESHOLD", 0.08)
 MUSIC_FADE_SEC = _f("MUSIC_FADE_SEC", 1.2)           # плавный вход и выход
 ENDCARD_ENABLED = _b("ENDCARD_ENABLED", False)
 ENDCARD_SEC     = _f("ENDCARD_SEC", 2.0)
-ENDCARD_BG      = _opt("ENDCARD_BG", "0x120A2E")
+ENDCARD_BG      = _opt("ENDCARD_BG", "0x09001B")     # фирменный тёмный фон
 # Срезать однотонные поля, если провайдер отдал кадр не в той пропорции.
 AUTOCROP_BARS   = _b("AUTOCROP_BARS", True)
 XFADE_SEC       = _f("XFADE_SEC", 0.0)               # 0 = жёсткие склейки (как в референсе)

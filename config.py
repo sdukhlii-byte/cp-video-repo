@@ -259,6 +259,14 @@ XFADE_SEC       = _f("XFADE_SEC", 0.0)               # 0 = жёсткие скл
 MAX_PARALLEL_JOBS = _i("MAX_PARALLEL_JOBS", 3)
 KEEP_WORKDIR      = _b("KEEP_WORKDIR", True)
 STYLE_PRESET      = _opt("STYLE_PRESET", "pixel_story")
+
+# Переопределения стиля без правки кода. STYLE_EXTRA дописывается к пресету
+# (самый частый случай: «тот же вид, но добавь вот это»), а STYLE_IMAGE /
+# STYLE_MOTION / STYLE_NEGATIVE заменяют блоки пресета целиком.
+STYLE_EXTRA       = _opt("STYLE_EXTRA", "")
+STYLE_IMAGE       = _opt("STYLE_IMAGE", "")
+STYLE_MOTION      = _opt("STYLE_MOTION", "")
+STYLE_NEGATIVE    = _opt("STYLE_NEGATIVE", "")
 LANG              = _opt("LANG_DEFAULT", "ru")
 
 # S3/R2 — нужен, только если видеопровайдер откажется принимать data:-URL кадра.

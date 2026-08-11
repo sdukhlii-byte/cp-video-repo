@@ -5,6 +5,7 @@ cli.py — единственная точка входа. Airtable/Telegram н�
 Подкоманды:
   doctor      Проверка окружения: ffmpeg, шрифты, ключи, рендер тестовых субтитров.
               Работает БЕЗ ключей — с этого стоит начинать.
+  styles      Список стилей и их промпты. Офлайн.
   models      Каталог моделей OpenRouter (подобрать актуальный слаг видеомодели).
   script      Сценарий по теме → JSON (только текстовая модель, дёшево).
   fromtext    Свой текст озвучки → сценарий. Текст не переписывается ни на слово,
@@ -130,7 +131,9 @@ def cmd_doctor(args) -> None:
     print("\n── План ролика ──")
     print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "
           f"= {C.planned_shot_count()} шотов, ~{C.words_per_shot()} слов на шот")
-    print(f"  кадр {C.VIDEO_W}x{C.VIDEO_H} @{C.FPS}fps, стиль {C.STYLE_PRESET}")
+    extra = " + STYLE_EXTRA" if C.STYLE_EXTRA else ""
+    extra += " (переопределён STYLE_IMAGE)" if C.STYLE_IMAGE else ""
+    print(f"  кадр {C.VIDEO_W}x{C.VIDEO_H} @{C.FPS}fps, стиль {C.STYLE_PRESET}{extra}")
     if C.VOICE_FILE:
         mode = f"свой файл {os.path.basename(C.VOICE_FILE)} (forced alignment)"
     elif not C.VOICE_ENABLED:
@@ -183,6 +186,22 @@ def _caption_smoke(out_path: str) -> None:
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", out_path,
     ], label="capsmoke")
     print(f"  → {out_path}  (открой и проверь, что кириллица не квадратами)")
+
+
+# ── styles ─────────────────────────────────────────────────────────────────────
+
+def cmd_styles(args) -> None:
+    from story.prompts import STYLE_PRESETS, style
+    for name, preset in STYLE_PRESETS.items():
+        mark = " ← активен" if name == C.STYLE_PRESET else ""
+        print(f"\n=== {name}{mark} ===")
+        print(f"  картинка: {preset['image'][:150]}...")
+        print(f"  движение: {preset['motion'][:110]}...")
+    if C.STYLE_EXTRA or C.STYLE_IMAGE:
+        print("\n=== с учётом переопределений из окружения ===")
+        print(f"  {style()['image'][:300]}...")
+    print("\nМеняется через STYLE_PRESET. Дописать к пресету — STYLE_EXTRA.")
+    print("Заменить целиком — STYLE_IMAGE / STYLE_MOTION / STYLE_NEGATIVE.")
 
 
 # ── models ─────────────────────────────────────────────────────────────────────
@@ -352,6 +371,9 @@ def main() -> None:
     p.add_argument("--render-test", action="store_true", help="прожечь тестовые субтитры")
     p.add_argument("-o", "--out", default="")
     p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("styles", help="список стилей и их промпты")
+    p.set_defaults(func=cmd_styles)
 
     p = sub.add_parser("models", help="каталог моделей OpenRouter")
     p.add_argument("--filter", default="", help="подстрока: veo / seedance / image")

@@ -47,6 +47,57 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "negative": "photorealism, 3d render, harsh contrast, text overlays",
     },
+    # Пиксель + глянец: праздник, ночная жизнь, неон. Люди эффектные и
+    # стильные, но кадр остаётся про атмосферу, а не про тела — иначе
+    # контент-фильтр режет генерацию, и половина шотов уходит в фолбэк.
+    "pixel_glam": {
+        "image": (
+            "detailed 16-bit pixel-art illustration with a glossy modern finish, "
+            "nightlife glamour, confident stylish adults celebrating, elegant "
+            "evening outfits, sparkling highlights, champagne and confetti, "
+            "saturated neon palette of magenta cyan and gold, strong rim lighting, "
+            "bokeh light bloom, crisp pixel edges over smooth gradient shading, "
+            "cinematic vertical composition, subject framed from chest up in the "
+            "lower-middle third, clear empty space across the bottom quarter"
+        ),
+        "motion": (
+            "the character keeps celebrating with natural continuous movement — "
+            "laughing, raising a glass, hair and clothing moving; confetti drifts, "
+            "lights sweep and pulse across the room; slow cinematic push-in"
+        ),
+        "negative": "photorealism, nudity, revealing outfits, distorted faces, text overlays",
+    },
+    # Пиксель + аниме: мягкая заливка поверх пиксельной сетки.
+    "pixel_anime": {
+        "image": (
+            "hybrid style: 16-bit pixel-art structure with hand-painted anime "
+            "shading on top — crisp pixel edges on props and environment, but soft "
+            "cel-shaded faces and hair, expressive anime eyes, warm cinematic "
+            "rim light, detailed background art, vertical composition with the "
+            "subject in the lower-middle third, clear empty space at the bottom"
+        ),
+        "motion": (
+            "the character continues their action with expressive anime-style "
+            "movement, hair and fabric flowing, soft particles drifting, "
+            "slow camera push-in"
+        ),
+        "negative": "photorealism, 3d render, harsh contrast, text overlays",
+    },
+    # Пиксель + объём: пиксельная фактура на трёхмерных формах.
+    "pixel_3d": {
+        "image": (
+            "hybrid style: voxel-like 3D forms rendered with a 16-bit pixel-art "
+            "surface treatment — volumetric lighting and real depth of field, but "
+            "quantised pixel texture and a limited retro palette, glossy "
+            "reflections, cinematic vertical composition, subject from chest up in "
+            "the lower-middle third, clear empty space across the bottom quarter"
+        ),
+        "motion": (
+            "the character keeps performing their action with weighty three-"
+            "dimensional movement, volumetric light shifting, slow dolly-in"
+        ),
+        "negative": "flat vector, photorealism, text overlays",
+    },
     # Кинематографичный «нуар»-док для серьёзных историй.
     "cinematic_doc": {
         "image": (
@@ -65,7 +116,24 @@ STYLE_PRESETS: dict[str, dict] = {
 
 
 def style(name: str = "") -> dict:
-    return STYLE_PRESETS.get(name or C.STYLE_PRESET, STYLE_PRESETS["pixel_story"])
+    """
+    Активный стиль: пресет плюс переопределения из окружения.
+
+    STYLE_IMAGE / STYLE_MOTION / STYLE_NEGATIVE позволяют задать свой стиль
+    целиком из переменных, не трогая код и не пересобирая образ — иначе любая
+    проба нового вида требовала бы правки файла и деплоя.
+    """
+    base = STYLE_PRESETS.get(name or C.STYLE_PRESET, STYLE_PRESETS["pixel_story"])
+    merged = dict(base)
+    if C.STYLE_IMAGE:
+        merged["image"] = C.STYLE_IMAGE
+    if C.STYLE_MOTION:
+        merged["motion"] = C.STYLE_MOTION
+    if C.STYLE_NEGATIVE:
+        merged["negative"] = C.STYLE_NEGATIVE
+    if C.STYLE_EXTRA:
+        merged["image"] = f"{merged['image']}, {C.STYLE_EXTRA}"
+    return merged
 
 
 # ── ПРАВИЛА КАДРА ──────────────────────────────────────────────────────────────

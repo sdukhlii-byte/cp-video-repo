@@ -118,6 +118,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
             "motion": str(s.get("motion") or "").strip(),
             "beat": str(s.get("beat") or "").strip(),
             "action": str(s.get("action") or "").strip(),
+            "key_word": str(s.get("key_word") or "").strip(),
             "framing": str(s.get("framing") or "").strip(),
             "brand_surface": str(s.get("brand_surface") or "").strip(),
             "brand_surface_upper": str(s.get("brand_surface_upper") or "").strip(),

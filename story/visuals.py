@@ -69,14 +69,19 @@ def character_ref(workdir: str, character: dict, world: str = "",
 # ── 2. КЕЙФРЕЙМ ШОТА ───────────────────────────────────────────────────────────
 
 def keyframe(workdir: str, idx: int, shot: dict, character: dict,
-             ref_url: str, world: str = "", preset: str = "") -> tuple[str, str]:
+             ref_url: str, world: str = "", preset: str = "",
+             prev_url: str = "") -> tuple[str, str]:
     base = build_keyframe_prompt(shot, character, world, preset,
                                  brand=C.BRAND_NAME, brand_mode=C.BRAND_PLACEMENT,
                                  tagline=C.BRAND_TAGLINE)
     path = os.path.join(workdir, f"keyframe_{idx:02d}.png")
 
+    # Первым референсом идёт лист персонажа (он держит лицо), вторым —
+    # предыдущий кадр (он держит свет и палитру). Порядок важен: модели
+    # сильнее опираются на первый референс.
+    chain = [ref_url] + ([prev_url] if prev_url else [])
     attempts = [
-        ("primary", base, [ref_url]),
+        ("primary", base, chain),
         ("safe", base + SAFETY_CLAUSE, [ref_url]),
         ("no-ref", base + SAFETY_CLAUSE, []),   # без референса, лишь бы шот отрисовался
     ]

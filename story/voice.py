@@ -293,7 +293,28 @@ def synthesize_whole(workdir: str, script: dict) -> tuple[str, list[float], list
         for w in chunk:
             words_global.append({"word": w["word"], "start": float(w["start"]),
                                  "end": float(w["end"]), "shot": i})
+    _mark_accents(words_global, script)
     return wav, durations, words_global
+
+
+def _mark_accents(words: list[dict], script: dict) -> None:
+    """
+    Помечает ключевое слово каждого шота флагом accent — субтитры покрасят его.
+
+    Сверяем по очищенной форме: в таймкодах слово приходит с пунктуацией,
+    а в сценарии — без, и прямое сравнение промахивалось бы почти всегда.
+    """
+    def norm(w: str) -> str:
+        return w.strip(".,!?;:—–\"'«»").lower()
+
+    for i, shot in enumerate(script["shots"]):
+        key = norm(shot.get("key_word", ""))
+        if not key:
+            continue
+        for w in words:
+            if w.get("shot") == i and norm(w["word"]) == key:
+                w["accent"] = True
+                break
 
 
 # ── СВОЯ ГОТОВАЯ ОЗВУЧКА ──────────────────────────────────────────────────────
@@ -353,6 +374,7 @@ def align_external(workdir: str, script: dict,
         for w in chunk:
             words_global.append({"word": w["word"], "start": w["start"],
                                  "end": w["end"], "shot": i})
+    _mark_accents(words_global, script)
     return wav, durations, words_global
 
 

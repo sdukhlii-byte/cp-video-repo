@@ -169,6 +169,17 @@ not an ad — it is a chain of concrete facts, each one earning the next second 
 attention. The viewer should feel they are learning something specific they can
 repeat to a friend.
 
+## THE FIRST 1.5 SECONDS DECIDE EVERYTHING
+Most viewers leave before the second shot. Shot 1 is not an introduction, it is
+the whole pitch. It must satisfy all three at once:
+  - the IMAGE is the single most arresting frame in the story — the strangest,
+    most specific, most "wait, what is that" moment, even if chronologically it
+    belongs later;
+  - the LINE states a fact that contradicts what the viewer assumes;
+  - nothing is explained yet. Explanation is what shot 2 is for.
+Never open on a wide establishing shot, a calm landscape, or a person standing
+in a room. Open on a face, on hands doing something, or on the object itself.
+
 ## NARRATIVE SPINE — follow this shape
 1. HOOK: name the thing the viewer already knows, then open the gap.
    "Everyone has eaten this. But do you know where it came from?"
@@ -229,6 +240,9 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
                  "angle looking down; wide shot with the subject small; "
                  "three-quarter medium shot.",
       "beat": "hook | origin | detail | turn | bridge | payoff | cta",
+      "key_word": "ONE word copied EXACTLY from this shot's narration — the word "
+                  "carrying the fact: a year, a number, a name, a place. Empty "
+                  "string if the line has no such word.",
       "brand_surface": "ENGLISH: one concrete PHYSICAL object already present in "
                        "THIS scene that could plausibly carry a brand name — a "
                        "barrel, a neon sign, a jersey, a poster, a crate, a "
@@ -257,6 +271,10 @@ HARD RULES:
    A story without specifics is the failure mode of this genre.
 5. Every shot's visual must be a DIFFERENT place, era or moment.
 6. Shot 1 opens the curiosity loop. The final shot closes it.
+   The final shot's VISUAL must echo the first shot's visual — same place, same
+   object or same gesture, changed by the story. A viewer who reaches the end
+   lands back where they started, which is what makes short video loop instead
+   of ending. Looping replays are counted as views.
 7. No real living people by name, no third-party brand logos, nothing sexual or
    violent.
 8. brand_surface must belong to that scene and era, and must be physical, never

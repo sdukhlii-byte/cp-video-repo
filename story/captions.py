@@ -67,6 +67,7 @@ def group_words(words: list[dict], min_sec: float = 0.0,
             g = groups[-1]
             g["text"] = f"{g['text']} {w['word']}"
             g["end"] = float(w["end"])
+            g["accent"] = g.get("accent") or bool(w.get("accent"))
             g["n"] += 1
             continue
         if (groups
@@ -77,6 +78,7 @@ def group_words(words: list[dict], min_sec: float = 0.0,
             g = groups[-1]
             g["text"] = f"{g['text']} {w['word']}"
             g["end"] = float(w["end"])
+            g["accent"] = g.get("accent") or bool(w.get("accent"))
             g["n"] += 1
             continue
         groups.append({
@@ -84,6 +86,7 @@ def group_words(words: list[dict], min_sec: float = 0.0,
             "start": float(w["start"]),
             "end": float(w["end"]),
             "shot": w.get("shot"),
+            "accent": bool(w.get("accent")),
             "n": 1,
         })
     return groups
@@ -146,6 +149,14 @@ def pick_promo() -> str:
         return C.PROMO_TEXT.strip()
     pool = [p.strip() for p in C.PROMO_TEXTS.split(";") if p.strip()]
     return random.choice(pool) if pool else ""
+
+
+def _accent_color() -> str:
+    try:
+        r, g, b = (int(x) for x in C.CAPTION_ACCENT_COLOR.split(",")[:3])
+    except Exception:  # noqa: BLE001
+        r, g, b = 255, 214, 64
+    return _ass(r, g, b)
 
 
 def _promo_color() -> str:
@@ -239,9 +250,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         pop = ("{\\fad(30,30)\\t(0,80,\\fscx100\\fscy100)\\fscx86\\fscy86}"
                if C.CAPTION_POP else "{\\fad(30,30)}")
         wtext, wfs = _fit_text(_esc(_case(g["text"])), video_w, 60, fs, max_lines=1)
-        wsize = f"{{\\fs{wfs}}}" if wfs != fs else ""
+        wsize = f"\\fs{wfs}" if wfs != fs else ""
+        # Ключевое слово шота красим: смена цвета цепляет глаз сильнее, чем
+        # очередная смена слова, и держит внимание в середине ролика.
+        wcol = (f"\\c{_accent_color()}"
+                if (C.CAPTION_ACCENT and g.get("accent")) else "")
+        override = f"{{{wsize}{wcol}}}" if (wsize or wcol) else ""
         lines.append(
-            f"Dialogue: 1,{_ts(start)},{_ts(end)},Word,,0,0,0,,{pop}{wsize}{wtext}"
+            f"Dialogue: 1,{_ts(start)},{_ts(end)},Word,,0,0,0,,{pop}{override}{wtext}"
         )
 
     with open(out_path, "w", encoding="utf-8") as f:

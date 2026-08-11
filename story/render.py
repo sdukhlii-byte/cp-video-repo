@@ -136,18 +136,29 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
     # 1. Референс персонажа
     ref_url, ref_path = visuals.character_ref(wd, character, world, preset)
 
-    # 2. Кейфреймы (параллельно)
+    # 2. Кейфреймы
     keyframes: dict[int, tuple[str, str]] = {}
     workers = max(1, min(C.MAX_PARALLEL_JOBS, len(shots)))
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = {
-            ex.submit(visuals.keyframe, wd, i, s, character, ref_url, world, preset): i
-            for i, s in enumerate(shots)
-        }
-        for fut in as_completed(futs):
-            i = futs[fut]
-            keyframes[i] = fut.result()
-    log.info("Кейфреймы готовы: %d", len(keyframes))
+    if C.FRAME_CHAIN:
+        # Последовательно: каждый кадр получает предыдущий вторым референсом.
+        # Медленнее, но герой и палитра не уплывают к концу ролика.
+        prev_url = ""
+        for i, sh in enumerate(shots):
+            keyframes[i] = visuals.keyframe(wd, i, sh, character, ref_url,
+                                            world, preset, prev_url=prev_url)
+            prev_url = keyframes[i][0]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {
+                ex.submit(visuals.keyframe, wd, i, s, character, ref_url,
+                          world, preset): i
+                for i, s in enumerate(shots)
+            }
+            for fut in as_completed(futs):
+                i = futs[fut]
+                keyframes[i] = fut.result()
+    log.info("Кейфреймы готовы: %d%s", len(keyframes),
+             " (цепочкой)" if C.FRAME_CHAIN else "")
 
     # 3. Озвучка — ДО анимации, чтобы знать точную длину каждого шота
     voice_track, durations, words = voice.build_track(wd, script)

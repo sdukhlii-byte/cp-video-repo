@@ -108,7 +108,15 @@ def cmd_doctor(args) -> None:
         if tl and len(tl) > 18:
             note = f"  ← {len(tl)} знаков,высокий риск опечатки"
         print(f"  слоган   {tl or '—'} (в {C.BRAND_TAGLINE_RATIO:.0%} шотов){note}")
-        print(f"  промо    {C.PROMO_TEXT or '—'} (наложение, опечаток не бывает)")
+        from story.captions import pick_promo
+        pool = [x.strip() for x in C.PROMO_TEXTS.split(";") if x.strip()]
+        if C.PROMO_TEXT.strip():
+            promo = f"{C.PROMO_TEXT}"
+        elif pool:
+            promo = f"пул из {len(pool)} фраз, напр. {pick_promo()[:48]}…"
+        else:
+            promo = "—"
+        print(f"  промо    {promo} (наложение, опечаток не бывает)")
 
     from story.render import pick_music
     track = pick_music()
@@ -129,8 +137,21 @@ def cmd_doctor(args) -> None:
     print("  сверить актуальные: python3 cli.py models --filter veo")
 
     print("\n── План ролика ──")
-    print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "
-          f"= {C.planned_shot_count()} шотов, ~{C.words_per_shot()} слов на шот")
+    # Когда текст задан вручную, длину и число шотов диктует ОН, а не настройки:
+    # печатать здесь плановые цифры значило бы обещать 36 секунд там, где выйдет
+    # вдвое больше, вместе с удвоенным счётом.
+    if C.NARRATION_TEXT.strip():
+        from story import from_text
+        est = from_text.estimate(C.NARRATION_TEXT)
+        print(f"  по NARRATION_TEXT: {est['shots']} шотов, {est['words']} слов, "
+              f"~{est['seconds']:.0f}с")
+        print(f"  через видеомодель {est['animated_shots']} шотов "
+              f"→ ~${est['cost_total']} (ANIMATE_RATIO={C.ANIMATE_RATIO})")
+        print(f"  (настройки {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с "
+              f"здесь не действуют — длину задаёт текст)")
+    else:
+        print(f"  {C.TARGET_DURATION_SEC:.0f}с / {C.SHOT_TARGET_SEC:.1f}с на шот "
+              f"= {C.planned_shot_count()} шотов, ~{C.words_per_shot()} слов на шот")
     extra = " + STYLE_EXTRA" if C.STYLE_EXTRA else ""
     extra += " (переопределён STYLE_IMAGE)" if C.STYLE_IMAGE else ""
     print(f"  кадр {C.VIDEO_W}x{C.VIDEO_H} @{C.FPS}fps, стиль {C.STYLE_PRESET}{extra}")

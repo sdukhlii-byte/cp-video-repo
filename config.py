@@ -161,7 +161,9 @@ ELEVEN_SPEED    = _f("ELEVEN_SPEED", 1.0)            # 0.7..1.2, поддерж�
 # ── СУБТИТРЫ (караоке по словам) ───────────────────────────────────────────────
 CAPTION_FONT       = _opt("CAPTION_FONT", "Montserrat ExtraBold")
 FONTS_DIR          = _opt("FONTS_DIR", os.path.join(ROOT, "assets", "fonts"))
-CAPTION_CASE       = _opt("CAPTION_CASE", "lower")   # lower | upper | as_is
+# sentence — начала предложений и имена собственные с большой, остальное
+#            строчными. lower — всё строчными, как в референсе ИСТОКа.
+CAPTION_CASE       = _opt("CAPTION_CASE", "sentence")  # sentence | lower | upper | as_is
 CAPTION_SIZE_RATIO = _f("CAPTION_SIZE_RATIO", 0.088) # доля высоты кадра (снято с референса)
 HOOK_SIZE_RATIO    = _f("HOOK_SIZE_RATIO", 0.050)    # хук сверху — заметно мельче слова
 CAPTION_MARGIN_V   = _f("CAPTION_MARGIN_V", 0.225)   # подъём над низом (доля высоты)

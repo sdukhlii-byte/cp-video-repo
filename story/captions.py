@@ -83,18 +83,38 @@ def _keep_case(word: str) -> bool:
     return core.isupper() and len(core) <= 4
 
 
-def _case(text: str) -> str:
+def _case(text: str, sentence_start: bool = False) -> str:
+    """
+    Регистр плашки.
+
+    sentence — единственный режим, который различает три случая: начало
+    предложения, имя собственное и обычное слово. Имена определяются по
+    заглавной букве В ИСХОДНОМ тексте: «Ada», «Babbage», «Bernoulli» приходят
+    из таймкодов уже с большой буквы, и достаточно их не трогать. Всё
+    остальное опускается, как в референсе.
+    """
     if C.CAPTION_CASE == "as_is":
         return text
+
     out = []
-    for w in text.split():
-        if _keep_case(w):
+    for i, w in enumerate(text.split()):
+        if _keep_case(w):                      # аббревиатуры, римские цифры, числа
             out.append(w)
         elif C.CAPTION_CASE == "upper":
             out.append(w.upper())
+        elif C.CAPTION_CASE == "sentence":
+            if w[:1].isupper():                # имя собственное или начало фразы
+                out.append(w)
+            elif i == 0 and sentence_start:    # источник поленился — поднимаем сами
+                out.append(w[:1].upper() + w[1:])
+            else:
+                out.append(w.lower())
         else:
             out.append(w.lower())
     return " ".join(out)
+
+
+_SENT_END = ".!?…"
 
 
 def group_words(words: list[dict], min_sec: float = 0.0,
@@ -106,8 +126,14 @@ def group_words(words: list[dict], min_sec: float = 0.0,
     min_sec = min_sec or C.CAPTION_MIN_SEC
     max_words = max_words or C.CAPTION_MAX_WORDS
     groups: list[dict] = []
+    # Признак начала предложения снимаем с ИСХОДНОГО токена: пунктуация из
+    # плашек вырезается, и после этого понять, где кончилась фраза, уже нельзя.
+    new_sentence = True
     for w in words:
         dur = float(w["end"]) - float(w["start"])
+        raw = str(w["word"])
+        starts_sentence = new_sentence
+        new_sentence = raw.rstrip('")\'»').endswith(tuple(_SENT_END))
         if (groups
                 and groups[-1].get("shot") == w.get("shot")
                 and (groups[-1]["end"] - groups[-1]["start"]) < min_sec
@@ -135,6 +161,7 @@ def group_words(words: list[dict], min_sec: float = 0.0,
             "end": float(w["end"]),
             "shot": w.get("shot"),
             "accent": bool(w.get("accent")),
+            "sentence_start": starts_sentence,
             "n": 1,
         })
     return [g for g in groups if g["text"].strip()]
@@ -274,7 +301,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     if hook and not promo:
         # Хук и промо оба живут сверху — вместе они наложились бы друг на друга.
         # Промо приоритетнее: оно несёт оффер и висит весь ролик.
-        htext, hfs = _fit_text(_esc(_case(hook)), video_w, 60, hook_fs, max_lines=2)
+        htext, hfs = _fit_text(_esc(_case(hook, True)), video_w, 60, hook_fs, max_lines=2)
         hsize = f"\\fs{hfs}" if hfs != hook_fs else ""
         lines.append(
             f"Dialogue: 0,{_ts(0.05)},{_ts(hook_until)},Hook,,0,0,0,,"
@@ -303,7 +330,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         pop = ("{\\fad(25,25)\\fscx88\\fscy88"
                "\\t(0,70,\\fscx104\\fscy104)\\t(70,130,\\fscx100\\fscy100)}"
                if C.CAPTION_POP else "{\\fad(25,25)}")
-        wtext, wfs = _fit_text(_esc(_case(g["text"])), video_w, 60, fs, max_lines=1)
+        wtext, wfs = _fit_text(_esc(_case(g["text"], g.get("sentence_start", False))),
+                               video_w, 60, fs, max_lines=1)
         wsize = f"\\fs{wfs}" if wfs != fs else ""
         # Ключевое слово шота красим: смена цвета цепляет глаз сильнее, чем
         # очередная смена слова, и держит внимание в середине ролика.

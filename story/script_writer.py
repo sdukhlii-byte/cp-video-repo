@@ -158,25 +158,46 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
 # один и тот же, раскладываем по кругу. Однообразная средняя фронталка —
 # самый быстрый способ сделать ролик похожим на генерацию.
 _FRAMINGS = [
-    "three-quarter medium shot",
-    "extreme close-up on the face",
-    "over-the-shoulder from behind",
-    "low angle looking up",
-    "close-up on the hands",
-    "wide shot, character small in the frame",
-    "high angle looking down",
-    "profile shot from the side",
+    "tight medium shot, subject filling most of the frame height",
+    "extreme close-up on the face, head cropped by the top edge",
+    "low angle looking up, subject towering over the camera",
+    "close-up on the hands, hands filling the frame",
+    "over-the-shoulder from behind, subject large in the foreground",
+    "full-body hero shot, subject standing tall from head to feet edge to edge",
+    "dramatic profile shot from the side, face filling the frame",
+    "chest-up portrait, shoulders touching both side edges",
 ]
 
 
 def _ensure_framing(shots: list[dict]) -> None:
+    """
+    Нормализует ракурсы: убирает пустые, повторы подряд и мелкие планы.
+
+    Мелкий план — главная причина «бледного» кадра на вертикальном экране:
+    фигура тонет в общем виде, и ролик проигрывает референсам, где герой
+    занимает всю высоту. Инструкции в промпте недостаточно — модель всё равно
+    иногда пишет «wide establishing shot», поэтому такие варианты
+    перехватываем здесь и заменяем на крупные.
+    """
+    small = ("wide shot", "wide establishing", "establishing shot", "long shot",
+             "aerial", "bird's eye", "birds eye", "from a distance", "far away",
+             "small in the frame", "tiny", "extreme wide")
+
     used: list[str] = []
+    replaced = 0
     for i, sh in enumerate(shots):
         f = sh.get("framing", "").strip()
-        if not f or (used and f.lower() == used[-1].lower()):
+        low = f.lower()
+        is_small = any(marker in low for marker in small)
+        if not f or is_small or (used and low == used[-1].lower()):
+            if is_small:
+                replaced += 1
             f = _FRAMINGS[i % len(_FRAMINGS)]
             sh["framing"] = f
         used.append(f)
+
+    if replaced:
+        log.info("Заменено мелких планов на крупные: %d", replaced)
     if not any(sh.get("action") for sh in shots):
         log.warning("Сценарий без действий персонажа — герой будет статичен в кадре")
 

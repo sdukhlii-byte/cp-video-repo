@@ -14,6 +14,21 @@ import config as C
 # Стилевой блок дословно приклеивается к КАЖДОМУ промпту картинки. Именно он,
 # а не описание сцены, держит единый вид всех шотов.
 
+# Правило композиции — общее для всех пресетов, поэтому вынесено сюда.
+# Раньше оно дублировалось в каждом и просило «субъект от груди в нижней
+# трети». На вертикальном экране это давало мелкую фигуру и пустоту сверху —
+# кадр читался бледно рядом с референсами, где герой занимает всю высоту.
+# Теперь субъект заполняет кадр, а место под субтитры защищается иначе:
+# нижняя пятая часть должна быть визуально спокойной (одежда, пол, стол),
+# а не пустой — читаемость даёт обводка субтитра, а не пустота под ним.
+COMPOSITION = (
+    "bold vertical composition that fills the entire 9:16 frame edge to edge, "
+    "subject large and dominant, occupying most of the frame height, "
+    "head near the top of the frame, no empty dead space above the subject, "
+    "keep the lowest fifth of the frame visually calm and low-contrast "
+    "(plain clothing, floor, desk or ground) so burned-in captions stay readable"
+)
+
 STYLE_PRESETS: dict[str, dict] = {
     # Стиль референса: детализированная 16-битная пиксель-иллюстрация.
     "pixel_story": {
@@ -21,9 +36,8 @@ STYLE_PRESETS: dict[str, dict] = {
             "detailed 16-bit pixel-art illustration, retro game cutscene aesthetic, "
             "crisp pixel edges with clean anti-aliasing, rich saturated palette, "
             "strong rim lighting and volumetric glow, dense environmental detail "
-            "(posters, signage, props, background crowd), cinematic vertical composition, "
-            "subject framed from chest up in the lower-middle third, "
-            "clear empty space across the bottom quarter of the frame for captions"
+            "(posters, signage, props, background crowd), "
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character performs their action naturally and continuously — "
@@ -33,13 +47,34 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "negative": "photorealism, 3d render, blurry, smooth airbrush, text overlays",
     },
+    # Глянцевый мультяшный маскот: толстая чёрная обводка как в комиксе,
+    # предельная насыщенность, драматичный стадионный/студийный свет. Это НЕ
+    # пиксель-арт — другой визуальный язык, ближе к вирусным спортивным мемам
+    # с животными-масками поверх реальных знаменитостей.
+    "toon_mascot": {
+        "image": (
+            "glossy cartoon mascot illustration, thick bold black ink outlines "
+            "around every shape like comic book line art, cel-shaded flat colour "
+            "fills with punchy highlights, extremely saturated vivid palette, "
+            "dramatic rim lighting from stadium floodlights or warm interior "
+            "lamps, glossy specular highlights on skin and fabric, high contrast, "
+            f"{COMPOSITION}"
+        ),
+        "motion": (
+            "big dynamic sports-poster motion: full-stride running, an arm "
+            "thrust high overhead, a dribble past an opponent, hair and jersey "
+            "whipping with the movement, confetti or dust kicked up by the "
+            "motion, crowd and lights pulsing behind; camera holds a strong "
+            "dynamic angle, no slow drift"
+        ),
+        "negative": "photorealism, pixel art, muted colours, thin linework, text overlays",
+    },
     # Мягкая аниме-иллюстрация (lo-fi ключевой кадр).
     "anime_lofi": {
         "image": (
             "hand-painted anime key-visual illustration, soft cel shading, "
             "warm cinematic lighting, lo-fi atmosphere, detailed background art, "
-            "vertical composition with the subject in the lower-middle third, "
-            "clean empty space across the bottom quarter for captions"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character keeps performing their action with natural body movement, "
@@ -57,8 +92,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "evening outfits, sparkling highlights, champagne and confetti, "
             "saturated neon palette of magenta cyan and gold, strong rim lighting, "
             "bokeh light bloom, crisp pixel edges over smooth gradient shading, "
-            "cinematic vertical composition, subject framed from chest up in the "
-            "lower-middle third, clear empty space across the bottom quarter"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character keeps celebrating with natural continuous movement — "
@@ -74,7 +108,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "shading on top — crisp pixel edges on props and environment, but soft "
             "cel-shaded faces and hair, expressive anime eyes, warm cinematic "
             "rim light, detailed background art, vertical composition with the "
-            "subject in the lower-middle third, clear empty space at the bottom"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character continues their action with expressive anime-style "
@@ -92,8 +126,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "blocks, including hair, fabric and foliage, blocky stair-stepped "
             "silhouettes, chunky quantised texture, limited retro palette, "
             "soft global illumination, cinematic vertical composition, subject "
-            "from chest up in the lower-middle third, clear empty space across "
-            "the bottom quarter"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character keeps performing their action with weighty blocky "
@@ -109,8 +142,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "surfaces, soft subsurface skin shading, expressive stylised "
             "proportions, warm cinematic key light with soft shadows, shallow "
             "depth of field, rich but natural palette, cinematic vertical "
-            "composition, subject from chest up in the lower-middle third, "
-            "clear empty space across the bottom quarter"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character keeps performing their action with smooth weighty "
@@ -129,8 +161,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "wrapping the figure, deep purple background (#09001B to #4110A4) "
             "with a radial magenta glow behind the subject, glossy premium "
             "finish, duotone violet-to-magenta rim lighting, never flat colour, "
-            "cinematic vertical composition, subject framed from chest up in the "
-            "lower-middle third, clear empty space across the bottom quarter"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the subject keeps performing their action with weighty three-"
@@ -144,8 +175,7 @@ STYLE_PRESETS: dict[str, dict] = {
         "image": (
             "cinematic illustrated still, painterly realism, moody documentary lighting, "
             "shallow depth of field, filmic color grade, "
-            "vertical composition with the subject in the lower-middle third, "
-            "clean empty space across the bottom quarter for captions"
+            f"{COMPOSITION}"
         ),
         "motion": (
             "the character continues their action with believable body language, "
@@ -340,18 +370,29 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
                 "day, what fills the background. Do NOT describe the subject's "
                 "face or clothes, and do NOT describe their pose here.",
       "action": "ENGLISH: what the subject is physically DOING in this shot, as "
-                "a continuous verb phrase — 'hunching over a keyboard, typing "
-                "fast', 'packing fish between layers of rice'. Never "
+                "a continuous verb phrase. Match the amplitude to the beat: "
+                "quiet beats get fine motor detail ('hunching over a keyboard, "
+                "typing fast'), but turn/payoff/celebration beats need BIG "
+                "full-body movement ('sprinting at full stride', 'thrusting a "
+                "fist overhead', 'spinning past an opponent') — small gestures "
+                "read as flat and lifeless on a triumphant beat. Never "
                 "'standing', 'posing' or 'looking at the camera'.",
-      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot: "
-                 "extreme close-up on the face; close-up on the hands; "
-                 "over-the-shoulder; from behind; low angle looking up; high "
-                 "angle looking down; wide shot with the subject small; "
-                 "three-quarter medium shot.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. The "
+                 "subject must be LARGE in every shot — never small, never lost "
+                 "in a wide establishing view. Pick from: extreme close-up on "
+                 "the face; close-up on the hands filling the frame; "
+                 "over-the-shoulder with the subject large in the foreground; "
+                 "low angle looking up, subject towering; full-body hero shot "
+                 "filling the frame height; dramatic side profile; chest-up "
+                 "portrait with shoulders touching both edges.",
       "beat": "hook | origin | detail | turn | bridge | payoff | cta",
-      "key_word": "ONE word copied EXACTLY from this shot's narration — the word "
-                  "carrying the fact: a year, a number, a name, a place. Empty "
-                  "string if the line has no such word.",
+      "key_word": "ONE TO THREE consecutive words copied EXACTLY from this "
+                  "shot's narration — either the fact (a year, a number, a "
+                  "name, a place) or, if there is no fact, the single most "
+                  "emotionally loaded phrase in the line, the part a viewer "
+                  "would repeat out loud. Must be a verbatim substring of the "
+                  "narration, not a paraphrase. Empty string only if truly "
+                  "nothing stands out.",
       "brand_surface": "ENGLISH: one concrete PHYSICAL object already present in "
                        "THIS scene that could plausibly carry a brand name — a "
                        "barrel, a neon sign, a jersey, a poster, a crate, a "
@@ -461,14 +502,19 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
     framing = str(shot.get("framing") or "").strip()
 
     return (
-        f"Single cinematic vertical frame. The SAME character as in the reference "
+        "Single cinematic vertical frame. "
+        # Ракурс ставим ПЕРВЫМ и с нажимом: если он идёт в середине промпта
+        # среди описаний стиля и сцены, модель тяготеет к безопасному среднему
+        # плану и фигура выходит мелкой.
+        + (f"SHOT SIZE — {framing}. The subject must be LARGE in this frame, "
+           f"filling most of the frame height. " if framing else "")
+        + f"The SAME character as in the reference "
         f"image ('{name}') — copy ONLY the face, hair, build and clothing. "
         f"Do NOT copy the reference pose: the reference shows a neutral standing "
         f"figure, this frame must show a different body position entirely. "
         f"The character is mid-action, caught in the middle of doing something, "
         f"never standing still facing the camera with arms at their sides. "
         + (f"Action: {action}. " if action else "")
-        + (f"Camera: {framing}. " if framing else "")
         + f"Scene: {visual}. "
         f"{('World: ' + world + '. ') if world else ''}"
         f"Art style: {st['image']}. "

@@ -253,7 +253,12 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
 
     fs       = int(video_h * C.CAPTION_SIZE_RATIO)
     hook_fs  = int(video_h * C.HOOK_SIZE_RATIO)
-    margin_v = int(video_h * C.CAPTION_MARGIN_V)
+    # Alignment в ASS: 2 — низ по центру (отступ MarginV снизу),
+    # 5 — вертикально по центру кадра, и тогда MarginV не используется.
+    if C.CAPTION_POSITION == "center":
+        w_align, margin_v = 5, 0
+    else:
+        w_align, margin_v = 2, int(video_h * C.CAPTION_MARGIN_V)
     # Обводку держим пропорционально кеглю: иначе при смене размера шрифта
     # текст либо тонет в чёрном, либо теряет читаемость на пёстром кадре.
     outline  = round(fs * C.CAPTION_OUTLINE_RATIO, 1)
@@ -273,7 +278,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{w_back},-1,0,0,0,100,100,0,0,{w_border},{w_outline},{w_shadow},2,60,60,{margin_v},1
+Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{w_back},-1,0,0,0,100,100,0,0,{w_border},{w_outline},{w_shadow},{w_align},60,60,{margin_v},1
 Style: Hook,{font},{hook_fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},8,60,60,{int(video_h*0.17)},1
 Style: Promo,{font},{promo_fs},{_promo_color()},{_promo_color()},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{promo_outline},{shadow},8,50,50,{int(video_h*C.PROMO_MARGIN_V)},1
 

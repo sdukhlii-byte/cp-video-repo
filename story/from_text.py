@@ -106,10 +106,14 @@ Return STRICT JSON only, no markdown fences:
                 "clothes, and never describe their pose here.",
       "action": "ENGLISH: what is physically happening in this shot, as a "
                 "continuous verb phrase. Never 'standing' or 'posing'.",
-      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot: "
-                 "extreme close-up on the face; close-up on the hands; "
-                 "over-the-shoulder; from behind; low angle; high angle; wide "
-                 "shot; three-quarter medium shot.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. The "
+                 "subject must be LARGE in every shot — never small, never lost "
+                 "in a wide establishing view. Pick from: extreme close-up on "
+                 "the face; close-up on the hands filling the frame; "
+                 "over-the-shoulder with the subject large in the foreground; "
+                 "low angle looking up, subject towering; full-body hero shot "
+                 "filling the frame height; dramatic side profile; chest-up "
+                 "portrait with shoulders touching both edges.",
       "beat": "setup | build | turn | payoff",
       "brand_surface": "ENGLISH: one PHYSICAL object in this scene that could "
                        "carry a brand name — a barrel, a banner, a crate, a cap, "

@@ -166,7 +166,14 @@ FONTS_DIR          = _opt("FONTS_DIR", os.path.join(ROOT, "assets", "fonts"))
 CAPTION_CASE       = _opt("CAPTION_CASE", "sentence")  # sentence | lower | upper | as_is
 CAPTION_SIZE_RATIO = _f("CAPTION_SIZE_RATIO", 0.088) # доля высоты кадра (снято с референса)
 HOOK_SIZE_RATIO    = _f("HOOK_SIZE_RATIO", 0.050)    # хук сверху — заметно мельче слова
-CAPTION_MARGIN_V   = _f("CAPTION_MARGIN_V", 0.225)   # подъём над низом (доля высоты)
+# Вертикальное положение субтитра. В референсах ИСТОКа плашка внизу, но у
+# большинства вирусных каналов она стоит по ЦЕНТРУ кадра — на уровне лица
+# героя, где взгляд и так находится. Центр читается сильнее, но перекрывает
+# субъекта, поэтому это выбор, а не дефолт «навсегда».
+#   bottom — нижняя четверть, как в референсе ИСТОКа
+#   center — по центру кадра, на уровне лица
+CAPTION_POSITION   = _opt("CAPTION_POSITION", "bottom")
+CAPTION_MARGIN_V   = _f("CAPTION_MARGIN_V", 0.225)   # подъём над низом (для bottom)
 CAPTION_OUTLINE_RATIO = _f("CAPTION_OUTLINE_RATIO", 0.045)  # обводка = доля кегля
 CAPTION_SHADOW     = _f("CAPTION_SHADOW", 0.0)
 CAPTION_MIN_SEC    = _f("CAPTION_MIN_SEC", 0.30)     # короткие слова клеим к соседу

@@ -201,6 +201,7 @@ def synthesize_script(workdir: str, script: dict) -> tuple[list[str], list[float
     log.info("%s целиком: %.2fс, %d слов",
              "Озвучка" if C.VOICE_ENABLED else "Дорожка без голоса",
              cursor, len(words_global))
+    _mark_accents(words_global, script)
     return wavs, durations, words_global
 
 # ── ЕДИНАЯ ДОРОЖКА: ВЕСЬ ТЕКСТ ОДНИМ ЗАПРОСОМ ─────────────────────────────────
@@ -299,8 +300,11 @@ def synthesize_whole(workdir: str, script: dict) -> tuple[str, list[float], list
 
 def _mark_accents(words: list[dict], script: dict) -> None:
     """
-    Помечает ключевое слово каждого шота флагом accent — субтитры покрасят его.
+    Помечает акцентную фразу каждого шота флагом accent — субтитры покрасят её.
 
+    key_word теперь бывает от одного до трёх слов (факт или эмоциональный
+    панч — «турнир», «разрывал взрослых мужиков»), поэтому ищем не отдельное
+    слово, а окно подряд идущих токенов той же длины и сверяем окно целиком.
     Сверяем по очищенной форме: в таймкодах слово приходит с пунктуацией,
     а в сценарии — без, и прямое сравнение промахивалось бы почти всегда.
     """
@@ -308,12 +312,16 @@ def _mark_accents(words: list[dict], script: dict) -> None:
         return w.strip(".,!?;:—–\"'«»").lower()
 
     for i, shot in enumerate(script["shots"]):
-        key = norm(shot.get("key_word", ""))
-        if not key:
+        key_words = [norm(w) for w in str(shot.get("key_word", "")).split() if norm(w)]
+        if not key_words:
             continue
-        for w in words:
-            if w.get("shot") == i and norm(w["word"]) == key:
-                w["accent"] = True
+        shot_words = [w for w in words if w.get("shot") == i]
+        n = len(key_words)
+        for start in range(len(shot_words) - n + 1):
+            window = shot_words[start:start + n]
+            if [norm(w["word"]) for w in window] == key_words:
+                for w in window:
+                    w["accent"] = True
                 break
 
 

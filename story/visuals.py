@@ -73,7 +73,7 @@ def keyframe(workdir: str, idx: int, shot: dict, character: dict,
              prev_url: str = "") -> tuple[str, str]:
     base = build_keyframe_prompt(shot, character, world, preset,
                                  brand=C.BRAND_NAME, brand_mode=C.BRAND_PLACEMENT,
-                                 tagline=C.BRAND_TAGLINE)
+                                 tagline=C.BRAND_TAGLINE, shot_index=idx)
     path = os.path.join(workdir, f"keyframe_{idx:02d}.png")
 
     # Первым референсом идёт лист персонажа (он держит лицо), вторым —
@@ -134,7 +134,7 @@ def animate(workdir: str, idx: int, keyframe_path: str, shot: dict,
     target_sec — длина озвучки шота; клип генерим с запасом и режем в compose.
     """
     raw = os.path.join(workdir, f"shot_{idx:02d}_raw.mp4")
-    prompt = build_motion_prompt(shot, preset)
+    prompt = build_motion_prompt(shot, preset, shot_index=idx)
     dur = _quantize(target_sec)
     frame_url = _frame_url(keyframe_path)
 

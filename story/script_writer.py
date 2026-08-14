@@ -320,7 +320,7 @@ def write_script(topic: str, language: str = "", shots: int = 0, words: int = 0,
     shots = shots or C.planned_shot_count()
     words = words or C.words_per_shot()
 
-    system = fill_script_system(shots, words, is_direct_address())
+    system = fill_script_system(shots, words, is_direct_address(), C.INTRO_HOST_SHOTS)
     user = build_script_user_prompt(topic, language, shots, words, extra, vertical)
 
     last: Exception | None = None

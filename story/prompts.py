@@ -212,6 +212,22 @@ STYLE_PRESETS: dict[str, dict] = {
 }
 
 
+def shot_is_host(shot: dict, index: int) -> bool:
+    """
+    Этот шот снимается как «ведущая говорит в камеру»?
+
+    Липсинка нет: озвучка синтезируется отдельно от видео, поэтому говорящий
+    рот всегда расходится со звуком. Короткое интро зритель прощает, длинную
+    говорящую голову — нет. Поэтому режим включается только на первых
+    INTRO_HOST_SHOTS шотах, а дальше идёт обычная визуализация истории.
+    """
+    if shot.get("host") is not None:
+        return bool(shot["host"])
+    if C.INTRO_HOST_SHOTS > 0:
+        return index < C.INTRO_HOST_SHOTS
+    return is_direct_address()
+
+
 def is_direct_address(preset: str = "") -> bool:
     """
     Стиль разговорного видео: герой сидит и обращается к зрителю.
@@ -511,11 +527,31 @@ physical action:
 """
 
 
-def fill_script_system(shots: int, words: int, direct_address: bool = False) -> str:
+HYBRID_INTRO_OVERRIDE = """
+
+## OVERRIDE — HOST INTRO, THEN THE STORY
+The first <INTRO> shot(s) are the host: the same woman seated at a casino table,
+looking at the viewer as she opens the story. For those shots only:
+- 'visual' is her table — the same room, no other location;
+- 'action' is a small seated gesture (a hand resting on the felt, sliding a chip,
+  a knowing half-smile). She is NOT mid-speech and her mouth stays closed;
+- 'framing' is a medium shot from across the table or a close-up on her face.
+
+Every shot AFTER that leaves the table and illustrates the story itself —
+different places, eras and characters, exactly as the main rules describe.
+The host does not appear again unless the narration returns to her.
+"""
+
+
+def fill_script_system(shots: int, words: int, direct_address: bool = False,
+                       intro_shots: int = 0) -> str:
     base = SCRIPT_SYSTEM.replace("<SHOTS>", str(shots)).replace("<WORDS>", str(words))
     # Стиль «ведущая за столом» отменяет требование менять локацию каждый шот и
     # играть крупным действием: без этой поправки сценарист гонит героиню по
     # разным местам, и разговорное видео разваливается.
+    if intro_shots > 0:
+        # Гибрид: ведущая только открывает ролик, дальше обычная история.
+        return base + HYBRID_INTRO_OVERRIDE.replace("<INTRO>", str(intro_shots))
     return base + DIRECT_ADDRESS_OVERRIDE if direct_address else base
 
 
@@ -546,7 +582,8 @@ def build_character_ref_prompt(character: dict, world: str = "", preset: str = "
 
 def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
                           preset: str = "", brand: str = "",
-                          brand_mode: str = "native", tagline: str = "") -> str:
+                          brand_mode: str = "native", tagline: str = "",
+                          shot_index: int = -1) -> str:
     """Кейфрейм шота. Персонаж приходит референс-картинкой, здесь — только сцена."""
     st = style(preset)
     name = str(character.get("name", "the character")).strip()
@@ -565,7 +602,7 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
 
     action = str(shot.get("action") or "").strip()
     framing = str(shot.get("framing") or "").strip()
-    direct_address = is_direct_address(preset)
+    direct_address = shot_is_host(shot, shot_index)
 
     return (
         "Single cinematic vertical frame. "
@@ -578,12 +615,15 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
         + f"The SAME character as in the reference "
         f"image ('{name}') — copy ONLY the face, hair, build and clothing. "
         + (
-            # Разговорный стиль: героиня сидит и обращается к зрителю. Общий
-            # запрет «не смотреть в камеру» здесь пришлось бы нарушать, поэтому
-            # для таких пресетов даём противоположную инструкцию.
-            "She is seated at the table, facing the viewer and speaking directly "
-            "to camera, engaged and mid-sentence, with a natural relaxed posture "
-            "and expressive eye contact. "
+            # Разговорный стиль: героиня сидит и обращается к зрителю.
+            # Рот НАМЕРЕННО не в фокусе и по возможности закрыт: озвучка
+            # синтезируется отдельно, липсинка нет, и артикуляция крупным
+            # планом сразу выдаёт рассинхрон. Взгляд и жест держат контакт
+            # со зрителем не хуже говорящего рта.
+            "She is seated at the table, facing the viewer with direct confident "
+            "eye contact, lips closed in a knowing half-smile, not mid-speech "
+            "and not with an open mouth. She communicates through her gaze and a "
+            "small deliberate hand gesture. Natural relaxed posture. "
             if direct_address else
             "Do NOT copy the reference pose: the reference shows a neutral standing "
             "figure, this frame must show a different body position entirely. "
@@ -615,7 +655,7 @@ def _style_anchor(st: dict) -> str:
     return ", ".join(part.strip() for part in head)
 
 
-def build_motion_prompt(shot: dict, preset: str = "") -> str:
+def build_motion_prompt(shot: dict, preset: str = "", shot_index: int = -1) -> str:
     """
     Промт движения для image-to-video.
 
@@ -626,6 +666,21 @@ def build_motion_prompt(shot: dict, preset: str = "") -> str:
     motion = str(shot.get("motion", "")).strip()
     visual = str(shot.get("visual", "")).strip()
     action = str(shot.get("action", "")).strip()
+
+    # В шотах-интро героиня не должна артикулировать: липсинка нет, и открытый
+    # говорящий рот в видео сразу выдаёт рассинхрон с озвучкой.
+    if shot_is_host(shot, shot_index):
+        return (
+            f"{visual}. She holds direct eye contact with the viewer, lips "
+            f"closed, without speaking or moving her mouth. Only subtle life: "
+            f"a slow blink, a slight head tilt, a small hand gesture, hair and "
+            f"fabric settling, ambient light shifting behind her. "
+            f"{st['motion'].split(';')[-1].strip()}. "
+            f"CRITICAL — preserve the exact art style of the source frame: "
+            f"{_style_anchor(st)}. Do not open her mouth, do not animate speech, "
+            f"do not add text."
+        )
+
     return (
         f"{visual}. "
         # Действие героя ставим ПЕРЕД окружением: если начать с декораций,

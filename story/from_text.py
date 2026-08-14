@@ -18,7 +18,8 @@ import re
 
 import config as C
 from story import orclient
-from story.prompts import DIRECT_ADDRESS_OVERRIDE, is_direct_address
+from story.prompts import (DIRECT_ADDRESS_OVERRIDE, HYBRID_INTRO_OVERRIDE,
+                           is_direct_address)
 from story.script_writer import _extract_json, clean_narration, coerce
 
 log = logging.getLogger("fromtext")
@@ -157,9 +158,13 @@ def build_visuals(narration_lines: list[str], language: str = "",
     for attempt in range(1, retries + 1):
         try:
             system = VISUALS_SYSTEM
-            # Разговорный стиль отменяет требование менять локацию каждый шот —
-            # иначе ведущая за столом «переезжает» между кадрами.
-            if is_direct_address():
+            if C.INTRO_HOST_SHOTS > 0:
+                # Гибрид: ведущая открывает ролик, дальше история.
+                system += HYBRID_INTRO_OVERRIDE.replace("<INTRO>",
+                                                        str(C.INTRO_HOST_SHOTS))
+            elif is_direct_address():
+                # Разговорный стиль отменяет требование менять локацию каждый
+                # шот — иначе ведущая за столом «переезжает» между кадрами.
                 system += DIRECT_ADDRESS_OVERRIDE
             raw = orclient.chat(system, user, model=model, temperature=0.9)
             data = _extract_json(raw)
@@ -273,7 +278,12 @@ def script_from_text_timed(text: str, workdir: str, language: str = "",
     from story import voice
 
     os.makedirs(workdir, exist_ok=True)
-    wav, duration, words = voice.synthesize_line(workdir, 0, text.strip())
+    # Чистим ДО синтеза: иначе разметка и кавычки попадают и в озвучку, и в
+    # таймкоды, а оттуда в субтитры — так на экране оказалось «good story.**».
+    spoken = clean_narration(text)
+    if not spoken.strip():
+        raise ValueError("После очистки текст оказался пустым")
+    wav, duration, words = voice.synthesize_line(workdir, 0, spoken)
     if not words:
         raise RuntimeError("TTS не вернул пословные таймкоды — нарезка по времени невозможна")
 

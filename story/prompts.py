@@ -42,7 +42,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "the character performs their action naturally and continuously — "
             "hands, head and posture move, weight shifts, eyes blink and look around; "
             "background life continues around them (light flicker, crowd sway, "
-            "drifting smoke); camera moves slowly, no whip pans, no cuts"
+            "drifting smoke); the camera moves with the action, no cuts"
         ),
         "negative": "photorealism, 3d render, blurry, smooth airbrush, text overlays",
     },
@@ -64,7 +64,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "thrust high overhead, a dribble past an opponent, hair and jersey "
             "whipping with the movement, confetti or dust kicked up by the "
             "motion, crowd and lights pulsing behind; camera holds a strong "
-            "dynamic angle, no slow drift"
+            "dynamic angle, no drift"
         ),
         "negative": "photorealism, pixel art, muted colours, thin linework, text overlays",
     },
@@ -87,7 +87,7 @@ STYLE_PRESETS: dict[str, dict] = {
             "she speaks directly to the viewer with natural conversational "
             "movement — subtle head tilts, expressive eyes, small confident hand "
             "gestures over the table, chips or cards shifting slightly under her "
-            "fingers; background lights breathe softly; camera holds a slow "
+            "fingers; background lights breathe softly; camera holds an "
             "almost imperceptible push-in"
         ),
         "negative": (
@@ -104,7 +104,7 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "motion": (
             "the character keeps performing their action with natural body movement, "
-            "slow gentle camera push-in, soft ambient motion, drifting particles"
+            "camera push-in, soft ambient motion, drifting particles"
         ),
         "negative": "photorealism, 3d render, harsh contrast, text overlays",
     },
@@ -123,7 +123,7 @@ STYLE_PRESETS: dict[str, dict] = {
         "motion": (
             "the character keeps celebrating with natural continuous movement — "
             "laughing, raising a glass, hair and clothing moving; confetti drifts, "
-            "lights sweep and pulse across the room; slow cinematic push-in"
+            "lights sweep and pulse across the room; cinematic push-in"
         ),
         "negative": "photorealism, nudity, revealing outfits, distorted faces, text overlays",
     },
@@ -139,7 +139,7 @@ STYLE_PRESETS: dict[str, dict] = {
         "motion": (
             "the character continues their action with expressive anime-style "
             "movement, hair and fabric flowing, soft particles drifting, "
-            "slow camera push-in"
+            "camera push-in"
         ),
         "negative": "photorealism, 3d render, harsh contrast, text overlays",
     },
@@ -156,7 +156,7 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "motion": (
             "the character keeps performing their action with weighty blocky "
-            "movement, light shifting across the cubic surfaces, slow dolly-in"
+            "movement, light shifting across the cubic surfaces, dolly-in"
         ),
         "negative": "smooth surfaces, photorealism, flat vector, text overlays",
     },
@@ -173,7 +173,7 @@ STYLE_PRESETS: dict[str, dict] = {
         "motion": (
             "the character keeps performing their action with smooth weighty "
             "animation, hair and clothing following the movement, soft light "
-            "shifting, slow cinematic dolly-in"
+            "shifting, cinematic dolly-in"
         ),
         "negative": "voxel, pixel art, photorealism, flat vector, text overlays",
     },
@@ -192,7 +192,7 @@ STYLE_PRESETS: dict[str, dict] = {
         "motion": (
             "the subject keeps performing their action with weighty three-"
             "dimensional movement, translucent bubbles drifting and rotating "
-            "slowly around them, neon glow pulsing, slow cinematic push-in"
+            "around them, neon glow pulsing, cinematic push-in"
         ),
         "negative": "flat colour, pixel art, photorealistic documentary, text overlays",
     },
@@ -205,7 +205,7 @@ STYLE_PRESETS: dict[str, dict] = {
         ),
         "motion": (
             "the character continues their action with believable body language, "
-            "slow dolly-in with slight handheld breathing, atmospheric haze"
+            "dolly-in with handheld breathing, atmospheric haze"
         ),
         "negative": "cartoon, flat vector, text overlays",
     },
@@ -629,6 +629,8 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
             "figure, this frame must show a different body position entirely. "
             "The character is mid-action, caught in the middle of doing something, "
             "never standing still facing the camera with arms at their sides. "
+            + ("Mouth closed, not speaking and not mid-word — the story is told "
+               "by an off-screen narrator. " if C.NO_SPEECH else "")
         )
         + (f"Action: {action}. " if action else "")
         + f"Scene: {visual}. "
@@ -639,6 +641,31 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
         f"{tagline_clause}"
         f"{SAFETY_CLAUSE}"
     )
+
+
+# Формулировки темпа. Модели экономят движение по умолчанию, поэтому темп
+# приходится требовать явно — иначе получается вялый дрейф.
+MOTION_ENERGY_CLAUSES = {
+    "calm": (
+        "Pacing: unhurried and steady, gentle drift, the movement reads as calm "
+        "but never frozen."
+    ),
+    "normal": (
+        "Pacing: confident and continuous. The subject moves with clear intent "
+        "and the camera follows with purpose."
+    ),
+    "high": (
+        "Pacing: FAST and kinetic. The subject moves decisively and covers real "
+        "distance within the shot; the camera moves with energy — a quick "
+        "push-in, a sweeping arc or a tracking move that keeps up with them. "
+        "Something visibly changes between the first and the last frame. "
+        "This is the energy of a viral short-form edit, not a museum pan."
+    ),
+}
+
+
+def _energy_clause() -> str:
+    return MOTION_ENERGY_CLAUSES.get(C.MOTION_ENERGY, MOTION_ENERGY_CLAUSES["normal"])
 
 
 def _style_anchor(st: dict) -> str:
@@ -676,7 +703,12 @@ def build_motion_prompt(shot: dict, preset: str = "", shot_index: int = -1) -> s
             f"a slow blink, a slight head tilt, a small hand gesture, hair and "
             f"fabric settling, ambient light shifting behind her. "
             f"{st['motion'].split(';')[-1].strip()}. "
-            f"CRITICAL — preserve the exact art style of the source frame: "
+            + ("No one speaks and no mouth moves anywhere in the shot: the story is "
+           "told by an off-screen narrator, so visible articulation would fight "
+           "the voice-over. Characters express themselves through action, "
+           "posture and gaze. " if C.NO_SPEECH else "")
+        + f"{_energy_clause()} "
+        + f"CRITICAL — preserve the exact art style of the source frame: "
             f"{_style_anchor(st)}. Do not open her mouth, do not animate speech, "
             f"do not add text."
         )
@@ -690,11 +722,19 @@ def build_motion_prompt(shot: dict, preset: str = "", shot_index: int = -1) -> s
         + f"{motion + '. ' if motion else ''}"
         f"{st['motion']}. "
         f"The scene is a real place, not an illustration or a screen: "
-        f"animate the world itself. Hold the composition — the subject stays "
-        f"in frame the whole time. No cuts, no new text appearing. "
+        f"animate the world itself. This must be a MOVING shot, never a still "
+        f"frame with a slow zoom: the subject visibly moves through the action "
+        f"from the first frame to the last, and the environment moves with them. "
+        f"Hold the composition — the subject stays in frame the whole time. "
+        f"No cuts, no new text appearing. "
         # Стиль повторяем и требуем сохранить: иначе видеомодель приводит кадр
         # к своему рендеру по умолчанию, и стилизация исходника теряется.
-        f"CRITICAL — preserve the exact art style of the source frame: "
+        + ("No one speaks and no mouth moves anywhere in the shot: the story is "
+           "told by an off-screen narrator, so visible articulation would fight "
+           "the voice-over. Characters express themselves through action, "
+           "posture and gaze. " if C.NO_SPEECH else "")
+        + f"{_energy_clause()} "
+        + f"CRITICAL — preserve the exact art style of the source frame: "
         f"{_style_anchor(st)}. Keep the same texture, the same level of detail "
         f"and the same colour palette as the first frame. Do not smooth, "
         f"re-render, upgrade or realistically re-interpret the image."

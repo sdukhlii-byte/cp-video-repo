@@ -166,7 +166,8 @@ def animate(workdir: str, idx: int, keyframe_path: str, shot: dict,
     # Последний рубеж: оживляем сам кейфрейм.
     if not C.KENBURNS_FALLBACK:
         raise RuntimeError(f"Шот {idx}: видео не собралось")
-    log.warning("Шот %d: Ken Burns из кейфрейма", idx)
+    log.warning("Шот %d: видеомодель отказала — кадр останется СТАТИЧНЫМ "
+                "(зум из картинки). Причина выше в логе.", idx)
     media.ken_burns_clip(keyframe_path, raw, max(target_sec, C.MIN_SHOT_SEC),
                          C.VIDEO_W, C.VIDEO_H, C.FPS)
     return raw, 0.0

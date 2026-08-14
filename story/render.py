@@ -190,8 +190,14 @@ def render(script: dict, out_path: str, workdir_base: str = "work",
     # 4. Анимация. Часть шотов может идти зумом из кейфрейма — см. ANIMATE_RATIO.
     animated = pick_animated(shots, C.ANIMATE_RATIO)
     if len(animated) < len(shots):
-        log.info("Гибрид: через видеомодель %d из %d шотов (%s), остальные — зум",
-                 len(animated), len(shots), sorted(animated))
+        still = len(shots) - len(animated)
+        # Зум из кейфрейма — это статичная картинка: движения в ней нет, только
+        # медленный наезд. Если статика не нужна, единственный способ её убрать
+        # — ANIMATE_RATIO=1.0, тогда каждый шот идёт через видеомодель.
+        log.warning("%d из %d шотов будут СТАТИЧНЫМИ (зум из кейфрейма, без "
+                    "движения). Чтобы двигались все — ANIMATE_RATIO=1.0",
+                    still, len(shots))
+        log.info("Через видеомодель: %s", sorted(animated))
 
     def _kenburns(i: int) -> tuple[str, float]:
         path = os.path.join(wd, f"shot_{i:02d}_raw.mp4")

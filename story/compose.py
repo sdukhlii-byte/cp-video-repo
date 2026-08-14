@@ -31,8 +31,27 @@ def normalize_shot(src: str, dst: str, duration: float) -> None:
         found = detect_crop(src)
         if found:
             pre = found + ","
+
+    # Клип у видеомодели всегда заказывается с округлением ВВЕРХ (4с под шот
+    # в 3.2с). Обрезая хвост, мы выбрасываем часть движения; сжав клип по
+    # времени, укладываем то же движение в шот — и оно идёт быстрее. Это
+    # бесплатная динамика, но сильное сжатие читается как ускоренная съёмка,
+    # поэтому ограничиваем MOTION_MAX_SPEED.
+    speed = ""
+    if C.CLIP_FIT == "speed":
+        try:
+            src_dur = probe_duration(src)
+        except RuntimeError:
+            src_dur = 0.0
+        if src_dur > duration + 0.15 > 0:
+            factor = min(src_dur / duration, max(C.MOTION_MAX_SPEED, 1.0))
+            if factor > 1.01:
+                speed = f"setpts=PTS/{factor:.4f},"
+                log.info("Шот сжат по времени ×%.2f (%.1fс → %.1fс) — движение живее",
+                         factor, src_dur, duration)
+
     vf = (
-        f"{pre}"
+        f"{pre}{speed}"
         f"scale={C.VIDEO_W}:{C.VIDEO_H}:force_original_aspect_ratio=increase,"
         f"crop={C.VIDEO_W}:{C.VIDEO_H},fps={C.FPS},setsar=1,"
         f"tpad=stop_mode=clone:stop_duration=5"   # если клип короче d_i — дотянем

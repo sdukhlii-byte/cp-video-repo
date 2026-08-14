@@ -134,6 +134,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
             "beat": str(s.get("beat") or "").strip(),
             "action": str(s.get("action") or "").strip(),
             "key_word": str(s.get("key_word") or "").strip(),
+            "subject": str(s.get("subject") or "").strip(),
             "framing": str(s.get("framing") or "").strip(),
             "brand_surface": str(s.get("brand_surface") or "").strip(),
             "brand_surface_upper": str(s.get("brand_surface_upper") or "").strip(),
@@ -148,6 +149,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
     _ensure_framing(out_shots)
     _assign_brand(out_shots)
     _assign_tagline(out_shots)
+    _assign_guide(out_shots)
 
     result = {
         "title": str(data.get("title") or "story").strip(),
@@ -262,6 +264,39 @@ def _assign_brand(shots: list[dict]) -> None:
     for i, sh in enumerate(shots):
         sh["brand"] = i in chosen
     log.info("Плейсмент %r в шотах: %s", C.BRAND_NAME, sorted(chosen))
+
+
+def _assign_guide(shots: list[dict]) -> None:
+    """
+    Помечает шоты, где в кадре появляется проводник.
+
+    Появляться в каждом кадре ей нельзя: тогда ролик снова превращается в серию
+    её портретов, а история теряется. Первый шот отдаём ей всегда — он знакомит
+    зрителя с ведущей; дальше она возникает периодически, равномерно по
+    таймлайну, и чаще там, где своего героя у шота нет.
+    """
+    if not C.GUIDE_MODE:
+        for sh in shots:
+            sh["guide"] = False
+        return
+
+    n = len(shots)
+    want = max(1, round(n * C.GUIDE_RATIO))
+    # Приоритет: первый шот, затем шоты без собственного героя, затем остальные
+    order = [0]
+    order += [i for i, sh in enumerate(shots) if i and not sh.get("subject")]
+    order += [i for i in range(1, n)]
+
+    chosen: list[int] = []
+    for i in order:
+        if len(chosen) >= want:
+            break
+        if i not in chosen:
+            chosen.append(i)
+
+    for i, sh in enumerate(shots):
+        sh["guide"] = i in chosen
+    log.info("Проводник в кадре: шоты %s из %d", sorted(chosen), n)
 
 
 def _assign_tagline(shots: list[dict]) -> None:

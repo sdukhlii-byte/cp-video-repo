@@ -421,6 +421,12 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
   "shots": [
     {
       "narration": "one line in the TARGET LANGUAGE, ~<WORDS> words",
+      "subject": "ENGLISH: WHO this shot is actually about — the person the "
+                 "narration is describing right now, with enough visual detail to "
+                 "draw them (age, build, clothing, era). If the line describes a "
+                 "man from 1870, this is that man, NOT the narrator. Empty string "
+                 "only if the shot has no person in it (an object, a place, a "
+                 "wheel spinning).",
       "visual": "ENGLISH description of the PLACE only: location, era, time of "
                 "day, what fills the background. Do NOT describe the subject's "
                 "face or clothes, and do NOT describe their pose here.",
@@ -543,12 +549,33 @@ The host does not appear again unless the narration returns to her.
 """
 
 
+GUIDE_OVERRIDE = """
+
+## OVERRIDE — THE HOST IS A GUIDE, NOT THE STORY
+There is a recurring elegant host, but she is NOT the subject of this story.
+She walks the viewer through it. Therefore:
+- 'subject' must name the person the narration is actually about in that shot —
+  the historical figure, the gambler, the inventor. If the line is about a man,
+  the shot shows THAT MAN, not the host.
+- The host appears in only some shots. When she does, she is off to one side,
+  smaller in frame, watching the scene — the event happens around her and other
+  people fill the space. She never blocks the action.
+- Shots about a place, an object or a mechanism need no person at all: leave
+  'subject' empty and describe the thing itself in 'visual'.
+- 'action' belongs to the SUBJECT of the shot, not to the host.
+Populated worlds beat portraits: crowds, staff, players, onlookers.
+"""
+
+
 def fill_script_system(shots: int, words: int, direct_address: bool = False,
                        intro_shots: int = 0) -> str:
     base = SCRIPT_SYSTEM.replace("<SHOTS>", str(shots)).replace("<WORDS>", str(words))
     # Стиль «ведущая за столом» отменяет требование менять локацию каждый шот и
     # играть крупным действием: без этой поправки сценарист гонит героиню по
     # разным местам, и разговорное видео разваливается.
+    if C.GUIDE_MODE:
+        # Проводник: история про её героев, а не про неё.
+        return base + GUIDE_OVERRIDE
     if intro_shots > 0:
         # Гибрид: ведущая только открывает ролик, дальше обычная история.
         return base + HYBRID_INTRO_OVERRIDE.replace("<INTRO>", str(intro_shots))
@@ -603,6 +630,50 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
     action = str(shot.get("action") or "").strip()
     framing = str(shot.get("framing") or "").strip()
     direct_address = shot_is_host(shot, shot_index)
+    subject = str(shot.get("subject") or "").strip()
+
+    if C.GUIDE_MODE:
+        # Проводник: героиня водит зрителя по истории, но не подменяет её.
+        # Референс всё равно передаётся — он держит её внешность там, где она
+        # появляется; в остальных шотах действуют персонажи самой истории.
+        guide_here = bool(shot.get("guide"))
+        if subject and guide_here:
+            who = (
+                f"The shot is about {subject} — they are the focus, acting in "
+                f"the centre of the frame, surrounded by other people of the "
+                f"scene. The woman from the reference image ('{name}') is also "
+                f"present but SECONDARY: standing to one side, smaller in the "
+                f"frame, watching the event rather than performing it. She never "
+                f"blocks the action and is not the largest figure. "
+            )
+        elif subject:
+            who = (
+                f"The shot is about {subject} — they fill the frame, with other "
+                f"people of the scene around them. The woman from the reference "
+                f"image does NOT appear in this shot at all. "
+            )
+        elif guide_here:
+            who = (
+                f"The woman from the reference image ('{name}') — copy her face, "
+                f"hair, build and clothing exactly. She observes the scene, with "
+                f"other people and activity around her. "
+            )
+        else:
+            who = (
+                "No recurring character in this shot: it shows the place, the "
+                "object or the mechanism itself, with the life of the scene "
+                "around it. "
+            )
+        return (
+            "Single cinematic vertical frame. "
+            + (f"SHOT SIZE — {framing}. " if framing else "")
+            + who
+            + (f"Action: {action}. " if action else "")
+            + f"Scene: {visual}. "
+            f"{('World: ' + world + '. ') if world else ''}"
+            f"Art style: {st['image']}. "
+            f"{rules}{brand_clause}{tagline_clause}{SAFETY_CLAUSE}"
+        )
 
     return (
         "Single cinematic vertical frame. "

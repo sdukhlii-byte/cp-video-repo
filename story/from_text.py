@@ -18,8 +18,8 @@ import re
 
 import config as C
 from story import orclient
-from story.prompts import (DIRECT_ADDRESS_OVERRIDE, HYBRID_INTRO_OVERRIDE,
-                           is_direct_address)
+from story.prompts import (DIRECT_ADDRESS_OVERRIDE, GUIDE_OVERRIDE,
+                           HYBRID_INTRO_OVERRIDE, is_direct_address)
 from story.script_writer import _extract_json, clean_narration, coerce
 
 log = logging.getLogger("fromtext")
@@ -158,7 +158,9 @@ def build_visuals(narration_lines: list[str], language: str = "",
     for attempt in range(1, retries + 1):
         try:
             system = VISUALS_SYSTEM
-            if C.INTRO_HOST_SHOTS > 0:
+            if C.GUIDE_MODE:
+                system += GUIDE_OVERRIDE
+            elif C.INTRO_HOST_SHOTS > 0:
                 # Гибрид: ведущая открывает ролик, дальше история.
                 system += HYBRID_INTRO_OVERRIDE.replace("<INTRO>",
                                                         str(C.INTRO_HOST_SHOTS))

@@ -52,6 +52,22 @@ def pick_topic() -> str:
     return topic
 
 
+def _build_from_text(from_text, raw: str) -> dict:
+    """
+    Сценарий из своего текста. При SPLIT_BY_TIMING режем по реальному звучанию —
+    тогда длина шота не зависит от того, насколько быстро говорит голос.
+    """
+    kw = dict(language=C.LANG, hook=os.environ.get("HOOK", ""),
+              extra=os.environ.get("EXTRA_DIRECTION", ""))
+    if C.SPLIT_BY_TIMING and C.VOICE_ENABLED and not C.VOICE_FILE:
+        try:
+            return from_text.script_from_text_timed(raw, "work/presynth", **kw)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Нарезка по звучанию не удалась (%s) — считаю по словам",
+                        str(e)[:160])
+    return from_text.script_from_text(raw, **kw)
+
+
 def main() -> None:
     from story.script_writer import coerce, estimate_duration, write_script
 
@@ -66,9 +82,7 @@ def main() -> None:
         raw = "\n".join(l for l in raw.splitlines()
                          if not l.strip().startswith("#"))
         from story import from_text
-        script = from_text.script_from_text(
-            raw, language=C.LANG, hook=os.environ.get("HOOK", ""),
-            extra=os.environ.get("EXTRA_DIRECTION", ""))
+        script = _build_from_text(from_text, raw)
         topic = "текст из NARRATION_TEXT"
         log.info("Сценарий из переменной NARRATION_TEXT (%d знаков)", len(raw))
     elif narration_file:
@@ -79,9 +93,7 @@ def main() -> None:
         with open(narration_file, encoding="utf-8") as f:
             raw = "\n".join(l for l in f.read().splitlines()
                              if not l.strip().startswith("#"))
-        script = from_text.script_from_text(
-            raw, language=C.LANG, hook=os.environ.get("HOOK", ""),
-            extra=os.environ.get("EXTRA_DIRECTION", ""))
+        script = _build_from_text(from_text, raw)
         topic = f"текст {os.path.basename(narration_file)}"
         log.info("Сценарий из текста: %s", narration_file)
     elif script_file:

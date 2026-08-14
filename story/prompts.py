@@ -15,16 +15,15 @@ import config as C
 # а не описание сцены, держит единый вид всех шотов.
 
 # Правило композиции — общее для всех пресетов, поэтому вынесено сюда.
-# Раньше оно дублировалось в каждом и просило «субъект от груди в нижней
-# трети». На вертикальном экране это давало мелкую фигуру и пустоту сверху —
-# кадр читался бледно рядом с референсами, где герой занимает всю высоту.
-# Теперь субъект заполняет кадр, а место под субтитры защищается иначе:
-# нижняя пятая часть должна быть визуально спокойной (одежда, пол, стол),
-# а не пустой — читаемость даёт обводка субтитра, а не пустота под ним.
+# Ищем баланс: слишком мелкая фигура теряется на вертикальном экране, слишком
+# крупная превращает каждый кадр в упор в лицо и лишает сцену контекста —
+# а именно окружение и делает кадр интересным. Поэтому просим уверенную
+# читаемую фигуру с видимым вокруг неё миром, а не «заполни весь кадр».
 COMPOSITION = (
-    "bold vertical composition that fills the entire 9:16 frame edge to edge, "
-    "subject large and dominant, occupying most of the frame height, "
-    "head near the top of the frame, no empty dead space above the subject, "
+    "confident vertical composition using the full 9:16 frame, "
+    "subject clearly readable and well placed, with the surrounding environment "
+    "visible around them so the scene has context, "
+    "no large dead empty space above the subject, "
     "keep the lowest fifth of the frame visually calm and low-contrast "
     "(plain clothing, floor, desk or ground) so burned-in captions stay readable"
 )
@@ -68,6 +67,33 @@ STYLE_PRESETS: dict[str, dict] = {
             "dynamic angle, no slow drift"
         ),
         "negative": "photorealism, pixel art, muted colours, thin linework, text overlays",
+    },
+    # Ведущая казино-нуар: героиня сидит за столом и обращается к зрителю.
+    # direct_address=True снимает общий запрет «не смотреть в камеру» — без
+    # этого флага промпт кадра требует героя в движении и отвёрнутым, и стиль
+    # разговорного видео просто не собирается.
+    "casino_noir_host": {
+        "direct_address": True,
+        "image": (
+            "cinematic illustrated portrait of a striking, elegant woman in her "
+            "thirties seated at a dark green felt table, glamorous casino-noir "
+            "styling, sharp intelligent gaze directed straight at the viewer, "
+            "sleek dark evening wear, tasteful jewellery, deep shadows with a "
+            "warm key light on her face, moody bokeh of casino lights behind, "
+            "rich blacks, gold and deep red accents, film-noir colour grade, "
+            "polished magazine-quality rendering"
+        ),
+        "motion": (
+            "she speaks directly to the viewer with natural conversational "
+            "movement — subtle head tilts, expressive eyes, small confident hand "
+            "gestures over the table, chips or cards shifting slightly under her "
+            "fingers; background lights breathe softly; camera holds a slow "
+            "almost imperceptible push-in"
+        ),
+        "negative": (
+            "nudity, revealing clothing, sexualised posing, photorealistic "
+            "likeness of a real person, pixel art, text overlays"
+        ),
     },
     # Мягкая аниме-иллюстрация (lo-fi ключевой кадр).
     "anime_lofi": {
@@ -184,6 +210,19 @@ STYLE_PRESETS: dict[str, dict] = {
         "negative": "cartoon, flat vector, text overlays",
     },
 }
+
+
+def is_direct_address(preset: str = "") -> bool:
+    """
+    Стиль разговорного видео: герой сидит и обращается к зрителю.
+
+    Общие правила промпта требуют героя в движении и запрещают смотреть в
+    камеру — для сюжетного ролика это верно, но «ведущая за столом» так не
+    собирается вообще. Флаг объявляется в самом пресете, чтобы переключение
+    стиля не требовало помнить про отдельную переменную.
+    """
+    st = STYLE_PRESETS.get(preset or C.STYLE_PRESET, {})
+    return bool(st.get("direct_address"))
 
 
 def style(name: str = "") -> dict:
@@ -377,14 +416,16 @@ Return STRICT JSON only. No markdown fences, no commentary. Schema:
                 "fist overhead', 'spinning past an opponent') — small gestures "
                 "read as flat and lifeless on a triumphant beat. Never "
                 "'standing', 'posing' or 'looking at the camera'.",
-      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. The "
-                 "subject must be LARGE in every shot — never small, never lost "
-                 "in a wide establishing view. Pick from: extreme close-up on "
-                 "the face; close-up on the hands filling the frame; "
-                 "over-the-shoulder with the subject large in the foreground; "
-                 "low angle looking up, subject towering; full-body hero shot "
-                 "filling the frame height; dramatic side profile; chest-up "
-                 "portrait with shoulders touching both edges.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. Vary "
+                 "the shot size across the video — mix close and medium shots so "
+                 "it does not feel monotonous. The subject should be clearly "
+                 "readable, but the environment must stay visible around them: "
+                 "avoid only extreme close-ups, and avoid distant wide "
+                 "establishing views where the subject gets lost. Pick from: "
+                 "close-up on the face; close-up on the hands at work; "
+                 "over-the-shoulder from behind; low angle looking up; "
+                 "medium shot from the waist up; full-body shot with the "
+                 "environment around them; three-quarter side view.",
       "beat": "hook | origin | detail | turn | bridge | payoff | cta",
       "key_word": "ONE TO THREE consecutive words copied EXACTLY from this "
                   "shot's narration — either the fact (a year, a number, a "
@@ -450,8 +491,32 @@ def build_script_user_prompt(topic: str, language: str, shots: int, words: int,
     return "\n".join(parts)
 
 
-def fill_script_system(shots: int, words: int) -> str:
-    return SCRIPT_SYSTEM.replace("<SHOTS>", str(shots)).replace("<WORDS>", str(words))
+DIRECT_ADDRESS_OVERRIDE = """
+
+## OVERRIDE — THIS VIDEO IS A PIECE TO CAMERA
+The subject is a single host seated at a table, speaking directly to the viewer
+for the whole video. This replaces the rules about varied locations and big
+physical action:
+- Every shot stays at the same table. Do not invent new locations.
+- 'action' is a conversational beat, not a physical feat: leaning in, tilting
+  the head, raising an eyebrow, sliding a chip across the felt, folding hands,
+  a knowing half-smile. Never 'standing', 'running' or 'posing'.
+- 'framing' varies the camera instead of the place: close-up on the face;
+  medium shot from across the table; slight low angle; over-the-shoulder from
+  behind her; close-up on her hands on the felt; three-quarter side view.
+- 'visual' describes the same room changing subtly — lighting shifts, the
+  crowd behind her, smoke, the spread of chips — not a different world.
+- 'brand_surface' should be something on or near the table: a chip stack, a
+  card shoe, a coaster, a table sign, a bottle label.
+"""
+
+
+def fill_script_system(shots: int, words: int, direct_address: bool = False) -> str:
+    base = SCRIPT_SYSTEM.replace("<SHOTS>", str(shots)).replace("<WORDS>", str(words))
+    # Стиль «ведущая за столом» отменяет требование менять локацию каждый шот и
+    # играть крупным действием: без этой поправки сценарист гонит героиню по
+    # разным местам, и разговорное видео разваливается.
+    return base + DIRECT_ADDRESS_OVERRIDE if direct_address else base
 
 
 # ── ПРОМПТЫ КАРТИНОК ───────────────────────────────────────────────────────────
@@ -500,20 +565,31 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
 
     action = str(shot.get("action") or "").strip()
     framing = str(shot.get("framing") or "").strip()
+    direct_address = is_direct_address(preset)
 
     return (
         "Single cinematic vertical frame. "
         # Ракурс ставим ПЕРВЫМ и с нажимом: если он идёт в середине промпта
         # среди описаний стиля и сцены, модель тяготеет к безопасному среднему
         # плану и фигура выходит мелкой.
-        + (f"SHOT SIZE — {framing}. The subject must be LARGE in this frame, "
-           f"filling most of the frame height. " if framing else "")
+        + (f"SHOT SIZE — {framing}. The subject is clearly readable and well "
+           f"placed in the frame, not lost in a distant wide view. "
+           if framing else "")
         + f"The SAME character as in the reference "
         f"image ('{name}') — copy ONLY the face, hair, build and clothing. "
-        f"Do NOT copy the reference pose: the reference shows a neutral standing "
-        f"figure, this frame must show a different body position entirely. "
-        f"The character is mid-action, caught in the middle of doing something, "
-        f"never standing still facing the camera with arms at their sides. "
+        + (
+            # Разговорный стиль: героиня сидит и обращается к зрителю. Общий
+            # запрет «не смотреть в камеру» здесь пришлось бы нарушать, поэтому
+            # для таких пресетов даём противоположную инструкцию.
+            "She is seated at the table, facing the viewer and speaking directly "
+            "to camera, engaged and mid-sentence, with a natural relaxed posture "
+            "and expressive eye contact. "
+            if direct_address else
+            "Do NOT copy the reference pose: the reference shows a neutral standing "
+            "figure, this frame must show a different body position entirely. "
+            "The character is mid-action, caught in the middle of doing something, "
+            "never standing still facing the camera with arms at their sides. "
+        )
         + (f"Action: {action}. " if action else "")
         + f"Scene: {visual}. "
         f"{('World: ' + world + '. ') if world else ''}"

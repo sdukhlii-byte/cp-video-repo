@@ -239,7 +239,10 @@ def _promo_color() -> str:
         r, g, b = (int(x) for x in C.PROMO_COLOR.split(",")[:3])
     except Exception:  # noqa: BLE001
         r, g, b = 255, 255, 255
-    return _ass(r, g, b)
+    # В ASS альфа инвертирована: 0x00 — непрозрачно, 0xFF — полностью прозрачно.
+    # Полупрозрачная подпись меньше похожа на вставленный рекламный баннер.
+    alpha = int(round((1.0 - max(0.0, min(1.0, C.PROMO_OPACITY))) * 255))
+    return _ass(r, g, b, alpha)
 
 
 def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int = 0,
@@ -262,7 +265,26 @@ def build_ass(words: list[dict], out_path: str, video_w: int = 0, video_h: int =
     # Обводку держим пропорционально кеглю: иначе при смене размера шрифта
     # текст либо тонет в чёрном, либо теряет читаемость на пёстром кадре.
     outline  = round(fs * C.CAPTION_OUTLINE_RATIO, 1)
-    promo_fs = int(video_h * C.PROMO_SIZE_RATIO)
+
+    # Геометрия промо-плашки зависит от режима подачи. Крупный баннер поверх
+    # кадра площадки читают как рекламную вставку, поэтому native/corner делают
+    # надпись мельче, полупрозрачной и уводят её вниз, где она выглядит подписью
+    # к ролику, а не наложенным объявлением.
+    if C.PROMO_STYLE == "banner":
+        promo_fs = int(video_h * C.PROMO_SIZE_RATIO)
+        promo_align = 8                                   # верх по центру
+        promo_margin = int(video_h * C.PROMO_MARGIN_V)
+    elif C.PROMO_STYLE == "corner":
+        promo_fs = int(video_h * C.PROMO_SIZE_RATIO * 0.48)
+        promo_align = 7                                   # верхний левый угол
+        promo_margin = int(video_h * 0.035)
+    else:                                                  # native
+        promo_fs = int(video_h * C.PROMO_SIZE_RATIO * 0.60)
+        promo_align = 2                                   # низ по центру
+        # Ниже субтитров: они сидят на CAPTION_MARGIN_V, и подпись не должна
+        # налезать на них — иначе два слоя текста сливаются в кашу.
+        promo_margin = int(video_h * 0.030)
+
     promo_outline = round(promo_fs * C.CAPTION_OUTLINE_RATIO, 1)
     shadow   = C.CAPTION_SHADOW
     font     = C.CAPTION_FONT
@@ -280,7 +302,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Word,{font},{fs},{WHITE},{WHITE},{BLACK},{w_back},-1,0,0,0,100,100,0,0,{w_border},{w_outline},{w_shadow},{w_align},60,60,{margin_v},1
 Style: Hook,{font},{hook_fs},{WHITE},{WHITE},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{outline},{shadow},8,60,60,{int(video_h*0.17)},1
-Style: Promo,{font},{promo_fs},{_promo_color()},{_promo_color()},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{promo_outline},{shadow},8,50,50,{int(video_h*C.PROMO_MARGIN_V)},1
+Style: Promo,{font},{promo_fs},{_promo_color()},{_promo_color()},{BLACK},{SHADOW},-1,0,0,0,100,100,0,0,1,{promo_outline},{shadow},{promo_align},50,50,{promo_margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

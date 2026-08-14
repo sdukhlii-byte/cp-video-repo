@@ -12,11 +12,13 @@ story/from_text.py — сценарий из ГОТОВОГО текста оз�
 
 from __future__ import annotations
 
+import os
 import logging
 import re
 
 import config as C
 from story import orclient
+from story.prompts import DIRECT_ADDRESS_OVERRIDE, is_direct_address
 from story.script_writer import _extract_json, clean_narration, coerce
 
 log = logging.getLogger("fromtext")
@@ -106,14 +108,16 @@ Return STRICT JSON only, no markdown fences:
                 "clothes, and never describe their pose here.",
       "action": "ENGLISH: what is physically happening in this shot, as a "
                 "continuous verb phrase. Never 'standing' or 'posing'.",
-      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. The "
-                 "subject must be LARGE in every shot — never small, never lost "
-                 "in a wide establishing view. Pick from: extreme close-up on "
-                 "the face; close-up on the hands filling the frame; "
-                 "over-the-shoulder with the subject large in the foreground; "
-                 "low angle looking up, subject towering; full-body hero shot "
-                 "filling the frame height; dramatic side profile; chest-up "
-                 "portrait with shoulders touching both edges.",
+      "framing": "ENGLISH camera framing, DIFFERENT from the previous shot. Vary "
+                 "the shot size across the video — mix close and medium shots so "
+                 "it does not feel monotonous. The subject should be clearly "
+                 "readable, but the environment must stay visible around them: "
+                 "avoid only extreme close-ups, and avoid distant wide "
+                 "establishing views where the subject gets lost. Pick from: "
+                 "close-up on the face; close-up on the hands at work; "
+                 "over-the-shoulder from behind; low angle looking up; "
+                 "medium shot from the waist up; full-body shot with the "
+                 "environment around them; three-quarter side view.",
       "beat": "setup | build | turn | payoff",
       "brand_surface": "ENGLISH: one PHYSICAL object in this scene that could "
                        "carry a brand name — a barrel, a banner, a crate, a cap, "
@@ -152,7 +156,12 @@ def build_visuals(narration_lines: list[str], language: str = "",
     last: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            raw = orclient.chat(VISUALS_SYSTEM, user, model=model, temperature=0.9)
+            system = VISUALS_SYSTEM
+            # Разговорный стиль отменяет требование менять локацию каждый шот —
+            # иначе ведущая за столом «переезжает» между кадрами.
+            if is_direct_address():
+                system += DIRECT_ADDRESS_OVERRIDE
+            raw = orclient.chat(system, user, model=model, temperature=0.9)
             data = _extract_json(raw)
             shots = data.get("shots") or []
             if len(shots) != len(narration_lines):
@@ -208,3 +217,79 @@ def estimate(text: str, words_per_shot: int = 0) -> dict:
         "video_seconds": animated * clip,
         "lines": lines,
     }
+
+
+# ── НАРЕЗКА ПО РЕАЛЬНОМУ ЗВУЧАНИЮ ─────────────────────────────────────────────
+
+def split_by_timings(words: list[dict], target_sec: float = 0.0) -> list[list[dict]]:
+    """
+    Режет пословные таймкоды на шоты по РЕАЛЬНОЙ длительности, а не по числу слов.
+
+    Это снимает необходимость угадывать темп речи: сколько бы слов ни успевал
+    произнести голос, шот всё равно получится нужной длины. Границу стараемся
+    ставить на конце предложения, затем на запятой, и только в крайнем случае
+    рвём посреди фразы.
+    """
+    target = target_sec or C.SHOT_TARGET_SEC
+    shots: list[list[dict]] = []
+    cur: list[dict] = []
+
+    for w in words:
+        cur.append(w)
+        span = float(cur[-1]["end"]) - float(cur[0]["start"])
+        if span < target * 0.75:
+            continue
+
+        raw = str(w["word"]).rstrip('"\')»')
+        sentence_end = raw.endswith((".", "!", "?", "…"))
+        clause_end = raw.endswith((",", ";", ":", "—", "–"))
+        # За целевой длиной режем на первой же возможной границе, а сильно
+        # раньше — только на конце предложения.
+        if sentence_end or (span >= target and clause_end) or span >= target * 1.5:
+            shots.append(cur)
+            cur = []
+
+    if cur:
+        # Хвост короче половины цели приклеиваем к предыдущему шоту, иначе
+        # последний кадр мелькнёт и пропадёт.
+        if shots and (float(cur[-1]["end"]) - float(cur[0]["start"])) < target * 0.5:
+            shots[-1].extend(cur)
+        else:
+            shots.append(cur)
+    return shots
+
+
+def script_from_text_timed(text: str, workdir: str, language: str = "",
+                           hook: str = "", extra: str = "",
+                           model: str = "") -> dict:
+    """
+    Сценарий из готового текста с нарезкой по реальному звучанию.
+
+    Порядок обратный обычному: сначала синтезируем ВЕСЬ текст одним запросом,
+    получаем пословные таймкоды, и только потом решаем, где границы шотов.
+    Готовая дорожка кладётся в сценарий и переиспользуется на рендере — второй
+    раз за озвучку не платим.
+    """
+    from story import voice
+
+    os.makedirs(workdir, exist_ok=True)
+    wav, duration, words = voice.synthesize_line(workdir, 0, text.strip())
+    if not words:
+        raise RuntimeError("TTS не вернул пословные таймкоды — нарезка по времени невозможна")
+
+    groups = split_by_timings(words)
+    lines = [" ".join(str(w["word"]) for w in g).strip() for g in groups]
+    lines = [clean_narration(l) for l in lines if l.strip()]
+    log.info("Текст нарезан по звучанию: %d шотов, %.0fс, реальный темп %.2f слова/сек",
+             len(lines), duration, len(words) / max(duration, 0.1))
+
+    script = build_visuals(lines, language=language, hook=hook, extra=extra, model=model)
+    # Дорожка уже синтезирована — отдаём её рендеру, чтобы не платить дважды.
+    script["_pre_synth"] = {
+        "wav": os.path.abspath(wav),
+        "groups": [[{"word": str(w["word"]),
+                     "start": float(w["start"]),
+                     "end": float(w["end"])} for w in g] for g in groups],
+        "duration": duration,
+    }
+    return script

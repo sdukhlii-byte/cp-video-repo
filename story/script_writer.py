@@ -14,7 +14,8 @@ import re
 
 import config as C
 from story import orclient
-from story.prompts import build_script_user_prompt, fill_script_system
+from story.prompts import (build_script_user_prompt, fill_script_system,
+                           is_direct_address)
 
 log = logging.getLogger("script")
 
@@ -53,10 +54,15 @@ def _extract_json(text: str) -> dict:
 # так открывающая « в начале текста доезжала до субтитра как часть слова.
 # Апостроф U+2019 НЕ трогаем: он внутри слов (Babbage's) и нужен для речи.
 _STRIP_CHARS = dict.fromkeys(
-    [ord(c) for c in '«»"\'`*_#']
-    + [0x201C, 0x201D, 0x201E, 0x201F, 0x2018, 0x201A, 0x2039, 0x203A],
+    [ord(c) for c in '«»"`*_#']
+    + [0x201C, 0x201D, 0x201E, 0x201F, 0x2039, 0x203A],
     None,
 )
+
+# Апостроф внутри слова обязателен для английского: убрав его, получаем
+# «Theres» и «Blancs» — и в субтитрах, и в тексте на озвучку. Поэтому кавычки
+# вида ' и ’ снимаем только на границах слова, а внутри оставляем.
+_EDGE_QUOTES = re.compile(r"(?<!\w)['\u2018\u201A\u2019]|['\u2018\u201A\u2019](?!\w)")
 
 
 def clean_narration(text: str) -> str:
@@ -67,6 +73,7 @@ def clean_narration(text: str) -> str:
     """
     t = str(text or "").strip()
     t = t.translate(_STRIP_CHARS)
+    t = _EDGE_QUOTES.sub("", t)
     t = re.sub(r"[\(\)\[\]\{\}]", "", t)
     t = re.sub(r"#\S+", "", t)
     t = re.sub(r"[\U0001F000-\U0001FAFF\u2600-\u27BF]", "", t)   # эмодзи
@@ -142,7 +149,7 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
     _assign_brand(out_shots)
     _assign_tagline(out_shots)
 
-    return {
+    result = {
         "title": str(data.get("title") or "story").strip(),
         "language": str(data.get("language") or C.LANG).strip(),
         "hook": clean_narration(data.get("hook") or ""),
@@ -152,20 +159,36 @@ def coerce(data: dict, shots: int = 0, words: int = 0) -> dict:
         "cta": clean_narration(data.get("cta") or ""),
         "style_preset": str(data.get("style_preset") or C.STYLE_PRESET),
     }
+    # Уже синтезированная дорожка должна пережить нормализацию: потеряв её,
+    # рендер молча озвучит тот же текст второй раз и спишет деньги повторно.
+    if data.get("_pre_synth"):
+        result["_pre_synth"] = data["_pre_synth"]
+    return result
 
 
 # Ракурсы для подстраховки: если модель не заполнила framing или повторила
 # один и тот же, раскладываем по кругу. Однообразная средняя фронталка —
 # самый быстрый способ сделать ролик похожим на генерацию.
 _FRAMINGS = [
-    "tight medium shot, subject filling most of the frame height",
-    "extreme close-up on the face, head cropped by the top edge",
-    "low angle looking up, subject towering over the camera",
-    "close-up on the hands, hands filling the frame",
-    "over-the-shoulder from behind, subject large in the foreground",
-    "full-body hero shot, subject standing tall from head to feet edge to edge",
-    "dramatic profile shot from the side, face filling the frame",
-    "chest-up portrait, shoulders touching both side edges",
+    "medium shot, subject from the waist up with room around them",
+    "close-up on the face, shoulders visible at the bottom",
+    "low angle looking up at the subject",
+    "close-up on the hands at work",
+    "over-the-shoulder from behind, subject in the foreground",
+    "full-body shot, subject standing with the environment visible around them",
+    "three-quarter view from the side",
+    "chest-up portrait with the background readable behind",
+]
+
+
+# Ракурсы для стиля «ведущая за столом»: меняется камера, а не место.
+_FRAMINGS_SEATED = [
+    "medium shot from across the table",
+    "close-up on her face",
+    "slight low angle from table level",
+    "close-up on her hands on the felt",
+    "three-quarter side view",
+    "over-the-shoulder from behind her",
 ]
 
 
@@ -183,6 +206,10 @@ def _ensure_framing(shots: list[dict]) -> None:
              "aerial", "bird's eye", "birds eye", "from a distance", "far away",
              "small in the frame", "tiny", "extreme wide")
 
+    # В разговорном стиле героиня сидит за столом: планы в полный рост и «с
+    # окружением вокруг» ей не подходят, поэтому запасной список свой.
+    pool = _FRAMINGS_SEATED if is_direct_address() else _FRAMINGS
+
     used: list[str] = []
     replaced = 0
     for i, sh in enumerate(shots):
@@ -192,7 +219,7 @@ def _ensure_framing(shots: list[dict]) -> None:
         if not f or is_small or (used and low == used[-1].lower()):
             if is_small:
                 replaced += 1
-            f = _FRAMINGS[i % len(_FRAMINGS)]
+            f = pool[i % len(pool)]
             sh["framing"] = f
         used.append(f)
 
@@ -293,7 +320,7 @@ def write_script(topic: str, language: str = "", shots: int = 0, words: int = 0,
     shots = shots or C.planned_shot_count()
     words = words or C.words_per_shot()
 
-    system = fill_script_system(shots, words)
+    system = fill_script_system(shots, words, is_direct_address())
     user = build_script_user_prompt(topic, language, shots, words, extra, vertical)
 
     last: Exception | None = None

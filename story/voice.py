@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import shutil
 import time
 
 import requests
@@ -398,7 +399,9 @@ def build_track(workdir: str, script: dict) -> tuple[str, list[float], list[dict
       VOICE_MODE=whole    — весь текст одним запросом (интонация непрерывная)
       VOICE_MODE=per_shot — по шоту за запрос (звучит рвано, только для отладки)
     """
-    if C.VOICE_FILE:
+    if script.get("_pre_synth"):
+        track, durations, words = _use_pre_synth(workdir, script)
+    elif C.VOICE_FILE:
         track, durations, words = align_external(workdir, script, C.VOICE_FILE)
     elif C.VOICE_ENABLED and C.VOICE_MODE == "whole":
         track, durations, words = synthesize_whole(workdir, script)
@@ -435,3 +438,34 @@ def _pad_to(src: str, seconds: float, workdir: str) -> str:
                   "-t", f"{seconds:.3f}", "-ar", "44100", "-ac", "2", dst],
                  label="voice_tail")
     return dst
+
+
+def _use_pre_synth(workdir: str, script: dict) -> tuple[str, list[float], list[dict]]:
+    """
+    Берёт дорожку, синтезированную ещё на этапе нарезки текста по звучанию.
+
+    Нарезка по реальным таймкодам требует TTS до раскадровки; повторный вызов
+    здесь означал бы вторую оплату того же текста, поэтому результат первого
+    вызова передаётся через сценарий.
+    """
+    pre = script["_pre_synth"]
+    src = pre["wav"]
+    if not os.path.exists(src):
+        raise FileNotFoundError(f"Предсинтезированная дорожка пропала: {src}")
+
+    dst = os.path.join(workdir, "voice_all_raw.wav")
+    os.makedirs(workdir, exist_ok=True)
+    if os.path.abspath(src) != os.path.abspath(dst):
+        shutil.copyfile(src, dst)
+
+    groups = pre["groups"]
+    durations = _durations_from_words(groups, float(pre["duration"]))
+    words_global: list[dict] = []
+    for i, chunk in enumerate(groups):
+        for w in chunk:
+            words_global.append({"word": w["word"], "start": float(w["start"]),
+                                 "end": float(w["end"]), "shot": i})
+    _mark_accents(words_global, script)
+    log.info("Переиспользую готовую озвучку: %.2fс, %d слов, %d шотов",
+             pre["duration"], len(words_global), len(groups))
+    return dst, durations, words_global

@@ -123,7 +123,10 @@ MOTION_ENERGY = _opt("MOTION_ENERGY", "high")
 #           Бесплатная динамика, но при сильном сжатии заметна ускоренная съёмка,
 #           поэтому ограничено MOTION_MAX_SPEED.
 CLIP_FIT        = _opt("CLIP_FIT", "speed")
-MOTION_MAX_SPEED = _f("MOTION_MAX_SPEED", 1.35)
+# 1.6 позволяет сжать минимальный 4-секундный клип в шот длиной 2.5с — то есть
+# держать быстрый монтаж без обрезки движения. Выше начинает читаться как
+# ускоренная перемотка.
+MOTION_MAX_SPEED = _f("MOTION_MAX_SPEED", 1.6)
 
 # ── OPENROUTER ─────────────────────────────────────────────────────────────────
 OR_BASE     = "https://openrouter.ai/api/v1"
@@ -153,9 +156,12 @@ VIDEO_MODEL           = _opt("VIDEO_MODEL", "google/veo-3.1-fast")
 VIDEO_RESOLUTION      = _opt("VIDEO_RESOLUTION", "720p")
 VIDEO_ALLOWED_DURS    = [int(x) for x in _opt("VIDEO_ALLOWED_DURS", "4,6,8").split(",") if x.strip()]
 VIDEO_GENERATE_AUDIO  = _b("VIDEO_GENERATE_AUDIO", False)   # звук берём из ElevenLabs
+# Дым и туман вынесены в негатив отдельно: видеомодель разгоняет любую дымку
+# до белых полос через весь кадр, и картинка тонет в артефактах.
 VIDEO_NEGATIVE        = _opt("VIDEO_NEGATIVE",
                              "text, watermark, subtitles, caption, logo, distorted face, "
-                             "morphing, extra limbs, flicker, jump cut")
+                             "morphing, extra limbs, flicker, jump cut, "
+                             "smoke, fog, haze, mist, steam, white streaks, light rays")
 
 # Фолбэк-видеомодель, если основная отказала (контент-фильтр/рейт-лимит).
 SECONDARY_VIDEO_ENABLED = _b("SECONDARY_VIDEO_ENABLED", True)

@@ -25,7 +25,12 @@ COMPOSITION = (
     "visible around them so the scene has context, "
     "no large dead empty space above the subject, "
     "keep the lowest fifth of the frame visually calm and low-contrast "
-    "(plain clothing, floor, desk or ground) so burned-in captions stay readable"
+    "(plain clothing, floor, desk or ground) so burned-in captions stay readable, "
+    # Пустая сцена с одной фигурой читается как заставка. Живые люди вокруг
+    # дают ощущение происходящего события, а не позирования.
+    "populate the scene with several other people caught mid-action around the "
+    "subject — reacting, moving, playing, watching — never a single figure alone "
+    "in an empty room"
 )
 
 STYLE_PRESETS: dict[str, dict] = {
@@ -34,7 +39,8 @@ STYLE_PRESETS: dict[str, dict] = {
         "image": (
             "detailed 16-bit pixel-art illustration, retro game cutscene aesthetic, "
             "crisp pixel edges with clean anti-aliasing, rich saturated palette, "
-            "strong rim lighting and volumetric glow, dense environmental detail "
+            "strong rim lighting, clean directional light without light shafts, "
+            "dense environmental detail "
             "(posters, signage, props, background crowd), "
             f"{COMPOSITION}"
         ),
@@ -286,6 +292,22 @@ def frame_rules_with_brand(brand: str, tagline: str = "") -> str:
         "No other letters, words, slogans, captions or watermarks — leave every "
         "other sign, poster and label completely blank."
     )
+
+
+# Общий негатив для КАРТИНОК. Раньше поле "negative" в пресетах существовало,
+# но никуда не передавалось: картиночная модель его не видела, и артефакты
+# вроде световых лучей и дымки приходилось ловить уже на видео.
+IMAGE_NEGATIVE_BASE = (
+    "smoke, fog, haze, mist, steam, light shafts, god rays, white streaks, "
+    "lens flare, speed lines, motion blur streaks"
+)
+
+
+def build_negative(st: dict) -> str:
+    parts = [IMAGE_NEGATIVE_BASE]
+    if st.get("negative"):
+        parts.append(str(st["negative"]))
+    return "Avoid entirely: " + ", ".join(parts) + ". "
 
 
 SAFETY_CLAUSE = (
@@ -672,7 +694,8 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
             + f"Scene: {visual}. "
             f"{('World: ' + world + '. ') if world else ''}"
             f"Art style: {st['image']}. "
-            f"{rules}{brand_clause}{tagline_clause}{SAFETY_CLAUSE}"
+            f"{rules}{brand_clause}{tagline_clause}"
+            f"{build_negative(st)}{SAFETY_CLAUSE}"
         )
 
     return (
@@ -710,6 +733,7 @@ def build_keyframe_prompt(shot: dict, character: dict, world: str = "",
         f"{rules}"
         f"{brand_clause}"
         f"{tagline_clause}"
+        f"{build_negative(st)}"
         f"{SAFETY_CLAUSE}"
     )
 
